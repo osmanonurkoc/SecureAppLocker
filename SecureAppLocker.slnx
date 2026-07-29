@@ -1,7 +1,0 @@
-<Solution>
-  <Project Path="SecureAppLocker.Service/SecureAppLocker.Service.csproj" />
-  <Project Path="SecureAppLocker.UI/SecureAppLocker.UI.csproj" Id="a478dd4c-06a7-4542-a0db-3e17a46eb8d9">
-    <Platform Project="x64" />
-    <Deploy />
-  </Project>
-</Solution>
