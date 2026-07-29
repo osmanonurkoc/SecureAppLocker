@@ -1,0 +1,114 @@
+<Window
+    x:Class="SecureAppLocker.Manager.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Title="SecureAppLocker Manager">
+
+	<Grid x:Name="MainRootGrid" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}" Visibility="Collapsed">
+		<Grid.RowDefinitions>
+			<RowDefinition Height="Auto" />
+			<RowDefinition Height="Auto" />
+			<RowDefinition Height="*" />
+		</Grid.RowDefinitions>
+
+		<!-- Header & Branding -->
+		<StackPanel Grid.Row="0" Margin="0,32,0,16" HorizontalAlignment="Center" Spacing="8">
+			<Image Source="ms-appx:///Assets/logo.png" Width="42" Height="42" HorizontalAlignment="Center" />
+			<TextBlock Text="SecureAppLocker" Style="{ThemeResource TitleTextBlockStyle}" HorizontalAlignment="Center" FontWeight="SemiBold" />
+			<StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="16" VerticalAlignment="Center">
+				<HyperlinkButton Content="GitHub" NavigateUri="https://github.com/osmanonurkoc/SecureAppLocker" VerticalAlignment="Center"/>
+				<HyperlinkButton Content="Website" NavigateUri="https://www.osmanonurkoc.com" VerticalAlignment="Center"/>
+			</StackPanel>
+		</StackPanel>
+
+		<!-- Segmented Pill Navigation -->
+		<StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8" Margin="0,0,0,16" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" Padding="4" CornerRadius="8" BorderThickness="1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+			<ToggleButton x:Name="NavApps" Content="Protected Apps" Tag="Apps" Click="SegmentedToggle_Click" IsChecked="True" Width="120" CornerRadius="6" />
+			<ToggleButton x:Name="NavSecurity" Content="Security" Tag="Security" Click="SegmentedToggle_Click" Width="120" CornerRadius="6" />
+			<ToggleButton x:Name="NavPassword" Content="Password" Tag="Password" Click="SegmentedToggle_Click" Width="120" CornerRadius="6" />
+		</StackPanel>
+
+		<!-- Main Content Area -->
+		<Grid Grid.Row="2" Margin="0">
+			<InfoBar x:Name="StatusInfoBar" IsOpen="False" Message="" VerticalAlignment="Top" Margin="24,0,24,0" Canvas.ZIndex="100"/>
+
+			<ScrollViewer Padding="24,12,24,24">
+				<StackPanel HorizontalAlignment="Center" MaxWidth="400" Spacing="16">
+					
+					<!-- Apps Page -->
+					<StackPanel x:Name="AppsPage" Spacing="16" Visibility="Visible" HorizontalAlignment="Stretch" Width="380">
+						<StackPanel Spacing="12" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" Padding="16" CornerRadius="8" BorderThickness="1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+							<TextBlock Text="Add Application" Style="{ThemeResource BodyStrongTextBlockStyle}" />
+							<Button x:Name="BrowseAppButton" Content="Browse &amp; Add Executable..." Click="BrowseApp_Click" HorizontalAlignment="Stretch" />
+
+							<TextBlock Text="Blocked Executables" Style="{ThemeResource BodyStrongTextBlockStyle}" Margin="0,8,0,0" />
+							<ListView x:Name="AppsListView" BorderThickness="1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" CornerRadius="8" Height="220" HorizontalAlignment="Stretch">
+								<ListView.ItemTemplate>
+									<DataTemplate>
+										<Grid Padding="8,4">
+											<Grid.ColumnDefinitions>
+												<ColumnDefinition Width="*"/>
+												<ColumnDefinition Width="Auto"/>
+												<ColumnDefinition Width="Auto"/>
+											</Grid.ColumnDefinitions>
+											<TextBlock FontSize="14" Text="{Binding Name}" VerticalAlignment="Center"/>
+											<!-- TwoWay binding instantly updates the object when toggled -->
+											<ToggleSwitch Grid.Column="1" MinWidth="0" HorizontalAlignment="Right" IsOn="{Binding IsEnabled, Mode=TwoWay}" Margin="0,0,12,0" OffContent="" OnContent="" VerticalAlignment="Center"/>
+											<Button Background="Transparent" Click="RemoveApp_Click" Grid.Column="2" Padding="4" Tag="{Binding}" ToolTipService.ToolTip="Remove App" VerticalAlignment="Center">
+												<FontIcon FontSize="16" Glyph="&#xE74D;"/>
+											</Button>
+										</Grid>
+									</DataTemplate>
+								</ListView.ItemTemplate>
+							</ListView>
+							<Button Content="Save Configuration" Style="{ThemeResource AccentButtonStyle}" Click="SaveApps_Click" HorizontalAlignment="Stretch"/>
+						</StackPanel>
+					</StackPanel>
+
+					<!-- General Settings Page -->
+					<StackPanel x:Name="SecurityPage" Spacing="16" Visibility="Collapsed" HorizontalAlignment="Stretch" Width="380">
+						<StackPanel Spacing="12" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" Padding="16" CornerRadius="8" BorderThickness="1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+							<TextBlock Text="Master Protection Switch" Style="{ThemeResource BodyStrongTextBlockStyle}" />
+							<ToggleSwitch x:Name="DeactivateSwitch" OnContent="Active" OffContent="Disabled" IsOn="True" Toggled="DeactivateSwitch_Toggled" HorizontalAlignment="Left"/>
+						</StackPanel>
+						<StackPanel Spacing="12" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" Padding="16" CornerRadius="8" BorderThickness="1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+							<TextBlock Text="Unlock Mode" Style="{ThemeResource BodyStrongTextBlockStyle}" />
+							<RadioButtons x:Name="UnlockModeRadioButtons">
+								<RadioButton Content="App Specific" Tag="AppSpecific" />
+								<RadioButton Content="Global (Unlock All)" Tag="Global" />
+							</RadioButtons>
+							
+							<TextBlock Text="Timeout Duration (Minutes)" Margin="0,8,0,0" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+							<NumberBox x:Name="TimeoutNumberBox" Minimum="1" Maximum="1440" Value="5" SpinButtonPlacementMode="Inline" HorizontalAlignment="Stretch"/>
+							
+							<NumberBox x:Name="PollingIntervalBox" Header="Process Scanning Interval (ms)" Value="300" Minimum="50" Maximum="2000" SpinButtonPlacementMode="Inline" Margin="0,16,0,0" ToolTipService.ToolTip="Lower values lock apps faster but use more CPU." />
+							
+							<Button Content="Save Settings" Style="{ThemeResource AccentButtonStyle}" Click="SaveSettings_Click" Margin="0,8,0,0" HorizontalAlignment="Stretch" />
+						</StackPanel>
+					</StackPanel>
+
+					<!-- Password Page -->
+					<StackPanel x:Name="PasswordPage" Spacing="16" Visibility="Collapsed" HorizontalAlignment="Stretch" Width="380">
+						<StackPanel Spacing="12" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" Padding="16" CornerRadius="8" BorderThickness="1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+							<TextBlock Text="Change Password" Style="{ThemeResource BodyStrongTextBlockStyle}" />
+							<PasswordBox x:Name="OldPasswordBox" Header="Current Password" />
+							<PasswordBox x:Name="NewPasswordBox" Header="New Password" />
+							<PasswordBox x:Name="ConfirmPasswordBox" Header="Confirm New Password" />
+
+							<Button Content="Update Password" Style="{ThemeResource AccentButtonStyle}" Click="UpdatePassword_Click" Margin="0,8,0,0" HorizontalAlignment="Stretch"/>
+						</StackPanel>
+
+						<StackPanel Spacing="12" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" Padding="16" CornerRadius="8" BorderThickness="1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+							<TextBlock Text="Recovery Key Backup" Style="{ThemeResource BodyStrongTextBlockStyle}" />
+							<Button Content="View Recovery Key" Click="ViewRecovery_Click" HorizontalAlignment="Stretch" />
+						</StackPanel>
+					</StackPanel>
+
+				</StackPanel>
+			</ScrollViewer>
+		</Grid>
+	</Grid>
+</Window>

@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "SecureAppLocker.UI (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "SecureAppLocker.UI (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}

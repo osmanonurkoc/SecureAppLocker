@@ -1,0 +1,15 @@
+[
+  {
+    "Name": "New Profile",
+    "Projects": [
+      {
+        "Path": "SecureAppLocker.Service\\SecureAppLocker.Service.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "SecureAppLocker.UI\\SecureAppLocker.UI.csproj",
+        "Action": "Start"
+      }
+    ]
+  }
+]

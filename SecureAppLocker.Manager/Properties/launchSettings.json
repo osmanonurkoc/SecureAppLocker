@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "SecureAppLocker.Manager (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "SecureAppLocker.Manager (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}
