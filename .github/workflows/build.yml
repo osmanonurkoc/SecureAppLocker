@@ -21,11 +21,11 @@ jobs:
         dotnet-version: 8.0.x
 
     - name: Restore Dependencies
-      run: dotnet restore SecureAppLocker.sln
+      run: dotnet restore
 
     - name: Build Service (Background Watchdog)
       run: |
-        dotnet publish SecureAppLocker/SecureAppLocker.Service/SecureAppLocker.Service.csproj `
+        dotnet publish SecureAppLocker.Service/SecureAppLocker.Service.csproj `
           -c Release `
           -r win-x64 `
           --self-contained true `
@@ -33,7 +33,7 @@ jobs:
 
     - name: Build Manager (Dashboard)
       run: |
-        dotnet publish SecureAppLocker/SecureAppLocker.Manager/SecureAppLocker.Manager.csproj `
+        dotnet publish SecureAppLocker.Manager/SecureAppLocker.Manager.csproj `
           -c Release `
           -r win-x64 `
           --self-contained true `
@@ -41,7 +41,7 @@ jobs:
 
     - name: Build UI (Password Prompt)
       run: |
-        dotnet publish SecureAppLocker/SecureAppLocker.UI/SecureAppLocker.UI.csproj `
+        dotnet publish SecureAppLocker.UI/SecureAppLocker.UI.csproj `
           -c Release `
           -r win-x64 `
           --self-contained true `
