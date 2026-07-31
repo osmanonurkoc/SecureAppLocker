@@ -21,7 +21,7 @@ jobs:
         dotnet-version: 8.0.x
 
     - name: Restore Dependencies
-      run: dotnet restore SecureAppLocker.sln
+      run: dotnet restore SecureAppLocker.sln -r win-x64
 
     - name: Build Service (Background Watchdog)
       run: |
