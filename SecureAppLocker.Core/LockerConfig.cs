@@ -23,5 +23,6 @@ namespace SecureAppLocker.Core
         public string RecoveryCodeSalt { get; set; } = string.Empty;
         public string EncryptedRecoveryCode { get; set; } = string.Empty;
         public bool IsActive { get; set; } = true;
+        public bool EnableLogging { get; set; } = true;
     }
 }

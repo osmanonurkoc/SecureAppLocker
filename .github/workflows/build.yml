@@ -1,0 +1,54 @@
+name: Build Windows Executables
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch: # Allows manual triggering
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 8.0.x
+
+    - name: Restore Dependencies
+      run: dotnet restore SecureAppLocker.sln
+
+    - name: Build Service (Background Watchdog)
+      run: |
+        dotnet publish SecureAppLocker/SecureAppLocker.Service/SecureAppLocker.Service.csproj `
+          -c Release `
+          -r win-x64 `
+          --self-contained true `
+          -o ./publish/Service
+
+    - name: Build Manager (Dashboard)
+      run: |
+        dotnet publish SecureAppLocker/SecureAppLocker.Manager/SecureAppLocker.Manager.csproj `
+          -c Release `
+          -r win-x64 `
+          --self-contained true `
+          -o ./publish/Manager
+
+    - name: Build UI (Password Prompt)
+      run: |
+        dotnet publish SecureAppLocker/SecureAppLocker.UI/SecureAppLocker.UI.csproj `
+          -c Release `
+          -r win-x64 `
+          --self-contained true `
+          -o ./publish/UI
+
+    - name: Upload Build Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: SecureAppLocker-Windows-x64
+        path: ./publish/

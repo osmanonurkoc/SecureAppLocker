@@ -1,0 +1,82 @@
+{
+  "format": 1,
+  "restore": {
+    "/home/sourav_me_pal/SecureAppLocker/SecureAppLocker.Core/SecureAppLocker.Core.csproj": {}
+  },
+  "projects": {
+    "/home/sourav_me_pal/SecureAppLocker/SecureAppLocker.Core/SecureAppLocker.Core.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "/home/sourav_me_pal/SecureAppLocker/SecureAppLocker.Core/SecureAppLocker.Core.csproj",
+        "projectName": "SecureAppLocker.Core",
+        "projectPath": "/home/sourav_me_pal/SecureAppLocker/SecureAppLocker.Core/SecureAppLocker.Core.csproj",
+        "packagesPath": "/home/sourav_me_pal/.nuget/packages/",
+        "outputPath": "/home/sourav_me_pal/SecureAppLocker/SecureAppLocker.Core/obj/",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "/home/sourav_me_pal/.nuget/NuGet/NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net8.0-windows"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net8.0-windows7.0": {
+            "targetAlias": "net8.0-windows",
+            "projectReferences": {}
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        }
+      },
+      "frameworks": {
+        "net8.0-windows7.0": {
+          "targetAlias": "net8.0-windows",
+          "dependencies": {
+            "System.Security.Cryptography.ProtectedData": {
+              "target": "Package",
+              "version": "[10.0.10, )"
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "downloadDependencies": [
+            {
+              "name": "Microsoft.AspNetCore.App.Runtime.win-x64",
+              "version": "[8.0.29, 8.0.29]"
+            },
+            {
+              "name": "Microsoft.NETCore.App.Runtime.win-x64",
+              "version": "[8.0.29, 8.0.29]"
+            }
+          ],
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "/usr/lib/dotnet/sdk/8.0.129/PortableRuntimeIdentifierGraph.json"
+        }
+      },
+      "runtimes": {
+        "win-x64": {
+          "#import": []
+        }
+      }
+    }
+  }
+}

@@ -362,6 +362,11 @@ namespace SecureAppLocker.Service
 				p.Kill();
 				_logger.LogInformation($"Process {procName} natively killed.");
 
+				if (_appConfig.EnableLogging)
+				{
+					LogManager.WriteLog("KILLED", procName, $"Path: {targetPath}");
+				}
+
 				TriggerPasswordUI(appKey, targetPath);
 			}
 			catch (Exception ex)
@@ -505,11 +510,13 @@ namespace SecureAppLocker.Service
 												{
 													_authCache["GLOBAL_UNLOCK"] = DateTime.Now.AddMinutes(timeout);
 													_logger.LogInformation($"GLOBAL Access Granted for {timeout} minutes.");
+													if (currentConfig.EnableLogging) LogManager.WriteLog("UNLOCK_GLOBAL", "ALL", $"Timeout: {timeout}m");
 												}
 												else
 												{
 													_authCache[appKey] = DateTime.Now.AddMinutes(timeout);
 													_logger.LogInformation($"Access Granted for {appKey} for {timeout} minutes.");
+													if (currentConfig.EnableLogging) LogManager.WriteLog("UNLOCK_APP", appKey, $"Timeout: {timeout}m");
 												}
 
 												if (pipeServer.IsConnected)
@@ -531,6 +538,7 @@ namespace SecureAppLocker.Service
 													await writer.WriteLineAsync("INVALID");
 												}
 												_logger.LogWarning($"Invalid password attempt for {appKey}.");
+												if (currentConfig.EnableLogging) LogManager.WriteLog("INVALID_PASSWORD", appKey, "Wrong master password entered.");
 											}
 										}
 									}
