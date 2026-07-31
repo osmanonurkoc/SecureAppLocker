@@ -21,7 +21,7 @@ jobs:
         dotnet-version: 8.0.x
 
     - name: Restore Dependencies
-      run: dotnet restore
+      run: dotnet restore SecureAppLocker.sln
 
     - name: Build Service (Background Watchdog)
       run: |
@@ -29,6 +29,7 @@ jobs:
           -c Release `
           -r win-x64 `
           --self-contained true `
+          --no-restore `
           -o ./publish/Service
 
     - name: Build Manager (Dashboard)
@@ -37,6 +38,7 @@ jobs:
           -c Release `
           -r win-x64 `
           --self-contained true `
+          --no-restore `
           -o ./publish/Manager
 
     - name: Build UI (Password Prompt)
@@ -45,6 +47,7 @@ jobs:
           -c Release `
           -r win-x64 `
           --self-contained true `
+          --no-restore `
           -o ./publish/UI
 
     - name: Upload Build Artifacts

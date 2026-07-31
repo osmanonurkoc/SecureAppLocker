@@ -1,0 +1,40 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SecureAppLocker.Core", "SecureAppLocker.Core\SecureAppLocker.Core.csproj", "{EEC8436A-25CB-4AB0-84C8-E3F21D10C857}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SecureAppLocker.Manager", "SecureAppLocker.Manager\SecureAppLocker.Manager.csproj", "{8A198E7D-2BD3-43D9-9467-B6F444C01A3A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SecureAppLocker.Service", "SecureAppLocker.Service\SecureAppLocker.Service.csproj", "{7E14DF6B-D3B3-4472-BBCF-3CF7F254503E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SecureAppLocker.UI", "SecureAppLocker.UI\SecureAppLocker.UI.csproj", "{914B262D-97F6-4456-8CCD-E39BF1F2B4CC}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{EEC8436A-25CB-4AB0-84C8-E3F21D10C857}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EEC8436A-25CB-4AB0-84C8-E3F21D10C857}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EEC8436A-25CB-4AB0-84C8-E3F21D10C857}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EEC8436A-25CB-4AB0-84C8-E3F21D10C857}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8A198E7D-2BD3-43D9-9467-B6F444C01A3A}.Debug|Any CPU.ActiveCfg = Debug|x86
+		{8A198E7D-2BD3-43D9-9467-B6F444C01A3A}.Debug|Any CPU.Build.0 = Debug|x86
+		{8A198E7D-2BD3-43D9-9467-B6F444C01A3A}.Release|Any CPU.ActiveCfg = Release|x86
+		{8A198E7D-2BD3-43D9-9467-B6F444C01A3A}.Release|Any CPU.Build.0 = Release|x86
+		{7E14DF6B-D3B3-4472-BBCF-3CF7F254503E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7E14DF6B-D3B3-4472-BBCF-3CF7F254503E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7E14DF6B-D3B3-4472-BBCF-3CF7F254503E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7E14DF6B-D3B3-4472-BBCF-3CF7F254503E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{914B262D-97F6-4456-8CCD-E39BF1F2B4CC}.Debug|Any CPU.ActiveCfg = Debug|x86
+		{914B262D-97F6-4456-8CCD-E39BF1F2B4CC}.Debug|Any CPU.Build.0 = Debug|x86
+		{914B262D-97F6-4456-8CCD-E39BF1F2B4CC}.Release|Any CPU.ActiveCfg = Release|x86
+		{914B262D-97F6-4456-8CCD-E39BF1F2B4CC}.Release|Any CPU.Build.0 = Release|x86
+	EndGlobalSection
+EndGlobal
