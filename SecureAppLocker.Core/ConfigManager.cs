@@ -63,11 +63,9 @@ namespace SecureAppLocker.Core
 
                 var systemSid = new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null);
                 var adminSid = new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null);
-                var usersSid = new SecurityIdentifier(WellKnownSidType.BuiltinUsersSid, null);
 
                 dSecurity.AddAccessRule(new FileSystemAccessRule(systemSid, FileSystemRights.FullControl, InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit, PropagationFlags.None, AccessControlType.Allow));
                 dSecurity.AddAccessRule(new FileSystemAccessRule(adminSid, FileSystemRights.FullControl, InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit, PropagationFlags.None, AccessControlType.Allow));
-                dSecurity.AddAccessRule(new FileSystemAccessRule(usersSid, FileSystemRights.ReadAndExecute, InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit, PropagationFlags.None, AccessControlType.Allow));
                 
                 dInfo.SetAccessControl(dSecurity);
 
@@ -79,7 +77,6 @@ namespace SecureAppLocker.Core
                     fSecurity.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
                     fSecurity.AddAccessRule(new FileSystemAccessRule(systemSid, FileSystemRights.FullControl, AccessControlType.Allow));
                     fSecurity.AddAccessRule(new FileSystemAccessRule(adminSid, FileSystemRights.FullControl, AccessControlType.Allow));
-                    fSecurity.AddAccessRule(new FileSystemAccessRule(usersSid, FileSystemRights.Read, AccessControlType.Allow));
                     fInfo.SetAccessControl(fSecurity);
                 }
             }

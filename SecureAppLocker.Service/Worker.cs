@@ -427,27 +427,25 @@ namespace SecureAppLocker.Service
 		private PipeSecurity CreateCommonPipeSecurity()
 		{
 			var pipeSecurity = new PipeSecurity();
+			
+			// CRITICAL: Block all incoming LAN connections
 			pipeSecurity.AddAccessRule(new PipeAccessRule(
-				new SecurityIdentifier(WellKnownSidType.BuiltinUsersSid, null),
+				new SecurityIdentifier(WellKnownSidType.NetworkSid, null),
+				PipeAccessRights.FullControl,
+				AccessControlType.Deny));
+
+			// Allow Interactive Session 1 UI
+			pipeSecurity.AddAccessRule(new PipeAccessRule(
+				new SecurityIdentifier(WellKnownSidType.InteractiveSid, null),
 				PipeAccessRights.ReadWrite,
 				AccessControlType.Allow));
-			pipeSecurity.AddAccessRule(new PipeAccessRule(
-				new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null),
-				PipeAccessRights.FullControl,
-				AccessControlType.Allow));
+
+			// Allow NT Service / SYSTEM
 			pipeSecurity.AddAccessRule(new PipeAccessRule(
 				new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null),
 				PipeAccessRights.FullControl,
 				AccessControlType.Allow));
 
-			var currentUser = System.Security.Principal.WindowsIdentity.GetCurrent().User;
-			if (currentUser != null)
-			{
-				pipeSecurity.AddAccessRule(new PipeAccessRule(
-					currentUser,
-					PipeAccessRights.FullControl,
-					AccessControlType.Allow));
-			}
 			return pipeSecurity;
 		}
 
