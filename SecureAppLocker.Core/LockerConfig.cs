@@ -18,9 +18,6 @@ namespace SecureAppLocker.Core
         public int TimeoutMinutes { get; set; } = 5;
         public int PollingIntervalMs { get; set; } = 300;
         public string MasterPasswordHash { get; set; } = string.Empty;
-        public string MasterPasswordSalt { get; set; } = string.Empty;
-        public string RecoveryCodeHash { get; set; } = string.Empty;
-        public string RecoveryCodeSalt { get; set; } = string.Empty;
         public string EncryptedRecoveryCode { get; set; } = string.Empty;
         public bool IsActive { get; set; } = true;
     }

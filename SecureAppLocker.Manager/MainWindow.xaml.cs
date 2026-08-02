@@ -75,7 +75,7 @@ namespace SecureAppLocker.Manager
                 {
                     if (args.Result == ContentDialogResult.Primary && !isAuthenticated)
                     {
-                        if (CryptoHelper.VerifyPassword(passwordBox.Password, _config.MasterPasswordHash, _config.MasterPasswordSalt))
+                        if (VerifyDPAPIPassword(passwordBox.Password, _config.MasterPasswordHash))
                         {
                             isAuthenticated = true;
                         }
@@ -139,7 +139,7 @@ namespace SecureAppLocker.Manager
                     var deferral = args.GetDeferral();
                     args.Cancel = true;
 
-                    if (string.IsNullOrEmpty(_config.RecoveryCodeHash))
+                    if (string.IsNullOrEmpty(_config.EncryptedRecoveryCode))
                     {
                         errorTextBlock.Text = "No recovery key was ever generated.";
                         errorTextBlock.Visibility = Visibility.Visible;
@@ -147,7 +147,7 @@ namespace SecureAppLocker.Manager
                         return;
                     }
 
-                    if (!CryptoHelper.VerifyPassword(recoveryCodeBox.Text.Trim(), _config.RecoveryCodeHash, _config.RecoveryCodeSalt))
+                    if (!VerifyDPAPIPassword(recoveryCodeBox.Text.Trim(), _config.EncryptedRecoveryCode))
                     {
                         errorTextBlock.Text = "Invalid recovery key. Please check and try again.";
                         errorTextBlock.Visibility = Visibility.Visible;
@@ -170,9 +170,7 @@ namespace SecureAppLocker.Manager
                     tempConfig.IsActive = _config.IsActive;
                     tempConfig.ProtectedApps = _config.ProtectedApps.ToList();
 
-                    var newHash = CryptoHelper.HashPassword(newPasswordBox.Password);
-                    tempConfig.MasterPasswordHash = newHash.Hash;
-                    tempConfig.MasterPasswordSalt = newHash.Salt;
+                    tempConfig.MasterPasswordHash = HashDPAPIPassword(newPasswordBox.Password);
 
                     bool success = await ConfigManager.SaveConfigViaIPCAsync(tempConfig);
                     if (success)
@@ -250,7 +248,7 @@ namespace SecureAppLocker.Manager
             TimeoutNumberBox.Value = _config.TimeoutMinutes > 0 ? _config.TimeoutMinutes : 5;
             PollingIntervalBox.Value = _config.PollingIntervalMs > 0 ? _config.PollingIntervalMs : 300;
 
-            bool isDefaultPassword = CryptoHelper.VerifyPassword("1234", _config.MasterPasswordHash, _config.MasterPasswordSalt);
+            bool isDefaultPassword = VerifyDPAPIPassword("1234", _config.MasterPasswordHash);
             if (isDefaultPassword)
             {
                 OldPasswordBox.Visibility = Visibility.Collapsed;
@@ -436,8 +434,8 @@ namespace SecureAppLocker.Manager
                 return;
             }
 
-            bool isDefaultPassword = CryptoHelper.VerifyPassword("1234", _config.MasterPasswordHash, _config.MasterPasswordSalt);
-            if (!isDefaultPassword && !CryptoHelper.VerifyPassword(oldPass, _config.MasterPasswordHash, _config.MasterPasswordSalt))
+            bool isDefaultPassword = VerifyDPAPIPassword("1234", _config.MasterPasswordHash);
+            if (!isDefaultPassword && !VerifyDPAPIPassword(oldPass, _config.MasterPasswordHash))
             {
                 ShowError("Incorrect current password.");
                 return;
@@ -450,21 +448,10 @@ namespace SecureAppLocker.Manager
             tempConfig.IsActive = _config.IsActive;
             tempConfig.ProtectedApps = _config.ProtectedApps.ToList();
 
-            var newHash = CryptoHelper.HashPassword(newPass);
-            tempConfig.MasterPasswordHash = newHash.Hash;
-            tempConfig.MasterPasswordSalt = newHash.Salt;
+            tempConfig.MasterPasswordHash = HashDPAPIPassword(newPass);
 
             string recoveryCode = GenerateRecoveryCode();
-            var recoveryHash = CryptoHelper.HashPassword(recoveryCode);
-            tempConfig.RecoveryCodeHash = recoveryHash.Hash;
-            tempConfig.RecoveryCodeSalt = recoveryHash.Salt;
-            
-            // DPAPI Encrypt
-            var encryptedBytes = System.Security.Cryptography.ProtectedData.Protect(
-                System.Text.Encoding.UTF8.GetBytes(recoveryCode),
-                null,
-                System.Security.Cryptography.DataProtectionScope.CurrentUser);
-            tempConfig.EncryptedRecoveryCode = Convert.ToBase64String(encryptedBytes);
+            tempConfig.EncryptedRecoveryCode = HashDPAPIPassword(recoveryCode);
 
             try
             {
@@ -552,7 +539,7 @@ namespace SecureAppLocker.Manager
             {
                 if (args.Result == ContentDialogResult.Primary && !isValid)
                 {
-                    if (CryptoHelper.VerifyPassword(passwordBox.Password, _config.MasterPasswordHash, _config.MasterPasswordSalt))
+                    if (VerifyDPAPIPassword(passwordBox.Password, _config.MasterPasswordHash))
                     {
                         isValid = true;
                     }
@@ -571,12 +558,8 @@ namespace SecureAppLocker.Manager
             {
                 try
                 {
-                    var encryptedBytes = Convert.FromBase64String(_config.EncryptedRecoveryCode);
-                    var decryptedBytes = System.Security.Cryptography.ProtectedData.Unprotect(
-                        encryptedBytes,
-                        null,
-                        System.Security.Cryptography.DataProtectionScope.LocalMachine);
-                    string recoveryCode = System.Text.Encoding.UTF8.GetString(decryptedBytes);
+                    byte[] encryptedBytes = Convert.FromBase64String(_config.EncryptedRecoveryCode);
+                    string recoveryCode = CryptoHelper.UnprotectLocalData(encryptedBytes);
                     
                     await ShowRecoveryKeyDialogAsync("Recovery Key Backup", recoveryCode, "Your current recovery code is:");
                 }
@@ -593,7 +576,6 @@ namespace SecureAppLocker.Manager
             string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
             return new string(Enumerable.Repeat(chars, 16).Select(s => s[random.Next(s.Length)]).ToArray());
         }
-
 
         private async System.Threading.Tasks.Task SaveConfigAndNotifyAsync(string message = "Configuration saved successfully.")
         {
@@ -648,6 +630,28 @@ namespace SecureAppLocker.Manager
                 _config.IsActive = DeactivateSwitch.IsOn;
                 await SaveConfigAndNotifyAsync(_config.IsActive ? "Protection Activated." : "Protection Deactivated.");
             }
+        }
+
+        // --- DPAPI Helper Methods ---
+        private bool VerifyDPAPIPassword(string input, string base64Hash)
+        {
+            if (string.IsNullOrEmpty(base64Hash)) return false;
+            try
+            {
+                byte[] encryptedBytes = Convert.FromBase64String(base64Hash);
+                string decrypted = CryptoHelper.UnprotectLocalData(encryptedBytes);
+                return input == decrypted;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private string HashDPAPIPassword(string input)
+        {
+            byte[] encryptedBytes = CryptoHelper.ProtectLocalData(input);
+            return Convert.ToBase64String(encryptedBytes);
         }
     }
 }

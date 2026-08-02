@@ -12,7 +12,6 @@ namespace SecureAppLocker.Core
 {
     public static class ConfigManager
     {
-        private static readonly byte[] Entropy = Encoding.UTF8.GetBytes("SecureAppLocker_DPAPI_Entropy_2026");
 
         public static readonly System.Text.Json.JsonSerializerOptions JsonOptions = new System.Text.Json.JsonSerializerOptions
         {
@@ -139,9 +138,6 @@ namespace SecureAppLocker.Core
 
         public static async Task<bool> SaveConfigViaIPCAsync(LockerConfig config)
         {
-            // DO NOT use a try-catch block here. Let the exceptions bubble up to the UI!
-            
-            // CRITICAL: Ensure the pipe name is EXACTLY "SecureAppLocker_ConfigPipe"
             using var pipeClient = new NamedPipeClientStream(
                 ".", 
                 "SecureAppLocker_ConfigPipe", 
@@ -170,20 +166,11 @@ namespace SecureAppLocker.Core
         private static LockerConfig CreateDefaultConfig(string configPath)
         {
             var defaultConfig = new LockerConfig();
-            // Intentionally empty. User must add apps.
 
-            var hashData = CryptoHelper.HashPassword("1234");
-            defaultConfig.MasterPasswordHash = hashData.Hash;
-            defaultConfig.MasterPasswordSalt = hashData.Salt;
-
-            try
-            {
-                SaveConfigLocal(defaultConfig);
-            }
-            catch
-            {
-                // UI process may fail to write due to ACL. Ignored, service will heal it.
-            }
+            byte[] encryptedBytes = CryptoHelper.ProtectLocalData("1234");
+            defaultConfig.MasterPasswordHash = Convert.ToBase64String(encryptedBytes);
+            
+            SaveConfigLocal(defaultConfig);
             return defaultConfig;
         }
     }

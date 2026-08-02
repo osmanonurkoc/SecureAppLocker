@@ -1,43 +1,21 @@
 using System;
 using System.Security.Cryptography;
+using System.Text;
 
 namespace SecureAppLocker.Core
 {
     public static class CryptoHelper
     {
-        private const int Iterations = 100000;
-        private const int HashSize = 32; // 256 bit
-        private const int SaltSize = 16; // 128 bit
-
-        public static (string Hash, string Salt) HashPassword(string password)
+        public static byte[] ProtectLocalData(string secretData)
         {
-            byte[] salt = new byte[SaltSize];
-            using (var rng = RandomNumberGenerator.Create())
-            {
-                rng.GetBytes(salt);
-            }
-
-            byte[] hash = Rfc2898DeriveBytes.Pbkdf2(password, salt, Iterations, HashAlgorithmName.SHA256, HashSize);
-            return (Convert.ToBase64String(hash), Convert.ToBase64String(salt));
+            byte[] rawData = Encoding.UTF8.GetBytes(secretData);
+            return ProtectedData.Protect(rawData, null, DataProtectionScope.LocalMachine);
         }
 
-        public static bool VerifyPassword(string password, string storedHash, string storedSalt)
+        public static string UnprotectLocalData(byte[] encryptedData)
         {
-            if (string.IsNullOrEmpty(password) || string.IsNullOrEmpty(storedHash) || string.IsNullOrEmpty(storedSalt))
-            {
-                return false;
-            }
-
-            try
-            {
-                byte[] salt = Convert.FromBase64String(storedSalt);
-                byte[] hash = Rfc2898DeriveBytes.Pbkdf2(password, salt, Iterations, HashAlgorithmName.SHA256, HashSize);
-                return Convert.ToBase64String(hash) == storedHash;
-            }
-            catch
-            {
-                return false;
-            }
+            byte[] rawData = ProtectedData.Unprotect(encryptedData, null, DataProtectionScope.LocalMachine);
+            return Encoding.UTF8.GetString(rawData);
         }
     }
 }

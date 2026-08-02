@@ -493,7 +493,21 @@ namespace SecureAppLocker.Service
 											string password = parts[2];
 											var currentConfig = _appConfig;
 
-											bool isValid = CryptoHelper.VerifyPassword(password, currentConfig.MasterPasswordHash, currentConfig.MasterPasswordSalt);
+											bool isValid = false;
+											try
+											{
+												byte[] encryptedBytes = Convert.FromBase64String(currentConfig.MasterPasswordHash);
+												string decryptedPassword = CryptoHelper.UnprotectLocalData(encryptedBytes);
+												isValid = (password == decryptedPassword);
+											}
+											catch (System.Security.Cryptography.CryptographicException)
+											{
+												isValid = false;
+											}
+											catch (Exception)
+											{
+												isValid = false;
+											}
 
 											if (isValid)
 											{
