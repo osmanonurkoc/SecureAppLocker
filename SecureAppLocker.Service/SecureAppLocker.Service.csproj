@@ -2,7 +2,7 @@
   <PropertyGroup>
     <SupportedUICultures>en-US</SupportedUICultures>
     <SatelliteResourceLanguages>en-US</SatelliteResourceLanguages>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <TargetFramework>net10.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>dotnet-SecureAppLocker.Service-e67a631e-396d-42cc-9c24-cdc23fb282c2</UserSecretsId>
@@ -22,10 +22,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
-    <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="10.0.0" />
     <PackageReference Include="Microsoft.Win32.SystemEvents" Version="10.0.10" />
-    <PackageReference Include="System.IO.Pipes.AccessControl" Version="5.0.0" />
     <PackageReference Include="System.Management" Version="10.0.10" />
   </ItemGroup>
 

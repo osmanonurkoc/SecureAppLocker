@@ -17,11 +17,8 @@ namespace SecureAppLocker.Core
                 rng.GetBytes(salt);
             }
 
-            using (var pbkdf2 = new Rfc2898DeriveBytes(password, salt, Iterations, HashAlgorithmName.SHA256))
-            {
-                byte[] hash = pbkdf2.GetBytes(HashSize);
-                return (Convert.ToBase64String(hash), Convert.ToBase64String(salt));
-            }
+            byte[] hash = Rfc2898DeriveBytes.Pbkdf2(password, salt, Iterations, HashAlgorithmName.SHA256, HashSize);
+            return (Convert.ToBase64String(hash), Convert.ToBase64String(salt));
         }
 
         public static bool VerifyPassword(string password, string storedHash, string storedSalt)
@@ -34,11 +31,8 @@ namespace SecureAppLocker.Core
             try
             {
                 byte[] salt = Convert.FromBase64String(storedSalt);
-                using (var pbkdf2 = new Rfc2898DeriveBytes(password, salt, Iterations, HashAlgorithmName.SHA256))
-                {
-                    byte[] hash = pbkdf2.GetBytes(HashSize);
-                    return Convert.ToBase64String(hash) == storedHash;
-                }
+                byte[] hash = Rfc2898DeriveBytes.Pbkdf2(password, salt, Iterations, HashAlgorithmName.SHA256, HashSize);
+                return Convert.ToBase64String(hash) == storedHash;
             }
             catch
             {

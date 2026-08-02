@@ -120,7 +120,7 @@ namespace SecureAppLocker.Core
             string path = GetConfigFilePath();
             string json = System.Text.Json.JsonSerializer.Serialize(config, JsonOptions);
 
-            string dir = Path.GetDirectoryName(path);
+            string? dir = Path.GetDirectoryName(path);
             if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
             {
                 Directory.CreateDirectory(dir);
@@ -160,7 +160,7 @@ namespace SecureAppLocker.Core
             string jsonPayload = System.Text.Json.JsonSerializer.Serialize(config, JsonOptions);
             await writer.WriteLineAsync($"UPDATE_CONFIG|{jsonPayload}");
             
-            string response = await reader.ReadLineAsync();
+            string? response = await reader.ReadLineAsync();
             
             if (response == "SUCCESS")
             {
