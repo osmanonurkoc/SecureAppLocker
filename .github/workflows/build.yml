@@ -71,12 +71,12 @@ jobs:
         path: ./SecureAppLocker-Release-*.zip
 
     - name: Create GitHub Release
-    if: github.event_name == 'workflow_dispatch'
-    uses: softprops/action-gh-release@v2
-    with:
+      if: github.event_name == 'workflow_dispatch'
+      uses: softprops/action-gh-release@v2
+      with:
         tag_name: ${{ github.event.inputs.version_tag }}
         name: SecureAppLocker ${{ github.event.inputs.version_tag }}
         files: SecureAppLocker-Release-${{ github.event.inputs.version_tag }}.zip
         generate_release_notes: true
-    env:
+      env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
