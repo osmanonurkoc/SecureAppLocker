@@ -1,4 +1,5 @@
 
+
 # 🔒 SecureAppLocker
 
 A lightweight, system-level application locker for Windows. Built with a modern **WinUI 3** interface and a robust background NT Service, it intercepts and locks specified applications instantly, requiring a master password for access.
@@ -8,7 +9,7 @@ Designed with a **"Fail-Secure"** architecture to prioritize your privacy and ke
 [![Download Latest Release](https://img.shields.io/badge/Download-Latest_Release-2ea44f?style=for-the-badge&logo=github&logoColor=white)](https://github.com/osmanonurkoc/SecureAppLocker/releases/latest)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows_10%20%7C%2011-0078D4.svg)]()
-[![Framework](https://img.shields.io/badge/.NET-8.0-512BD4.svg)]()
+[![Framework](https://img.shields.io/badge/.NET-10.0-512BD4.svg)]()
 [![UI](https://img.shields.io/badge/WinUI-3.0-0078D4.svg)]()
 ![Downloads](https://img.shields.io/github/downloads/osmanonurkoc/SecureAppLocker/total)
 ![Release](https://img.shields.io/github/v/release/osmanonurkoc/SecureAppLocker)
@@ -53,7 +54,7 @@ Because the Windows OS inherently grants ultimate control to Local Administrator
 
 ## ✨ Key Features
 
-* **🎛️ Master Protection Switch:** Need to quickly disable the system for a gaming session or a heavy workflow? Use the global toggle switch on the Manager dashboard to instantly arm or disarm all application locks without losing your configured apps.
+*  **🎛️ Master Protection Switch & Audit Logging:** Need to quickly disable the system for a gaming session or a heavy workflow? Use the global toggle switch on the Manager dashboard to instantly arm or disarm all application locks without losing your configured apps. You can also toggle the audit logging switch on or off from the security settings depending on your preference.
 * **⚡ Smart Metadata Detection:** Doesn't just rely on easily spoofable `.exe` file names. It extracts and verifies the `OriginalFilename` and `ProductName` directly from the executable's metadata to prevent simple rename bypasses.
 * **⏱️ Granular Timeout Controls:** Temporarily unlock specific apps for a custom duration (e.g., 5, 15, or 60 minutes), or use "Global Unlock" to freely use all protected apps for a defined time window.
 * **🛡️ Active Process Immunity & Smart Interception:** The background service is optimized to intercept *newly launching* processes. Once authenticated, that specific running instance and its child processes are granted temporary immunity so your active work is never abruptly killed. This is NOT a permanent whitelist—once the timeout expires and the app is closed, the lock is strictly re-enforced.

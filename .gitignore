@@ -1,0 +1,56 @@
+# ==========================================
+# Visual Studio / MSBuild
+# ==========================================
+.vs/
+[Bb]in/
+[Oo]bj/
+[Pp]ublish/
+*.user
+*.userosscache
+*.suo
+*.sln.docstates
+*.opendb
+*.dbmdl
+*.jfm
+
+# ==========================================
+# NuGet Packages
+# ==========================================
+**/packages/*
+!**/packages/build/
+*.nupkg
+*.snupkg
+
+# ==========================================
+# Build Artifacts & Release Zips
+# ==========================================
+*.zip
+/publish/
+/SecureAppLocker-Release-*/
+
+# ==========================================
+# Operating System Files
+# ==========================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ==========================================
+# Local Logs & Configuration Data
+# ==========================================
+*.log
+audit.log
+config.dat
+
+# ==========================================
+# IDEs & Editors (VS Code / Rider)
+# ==========================================
+.vscode/
+.idea/
+*.swp
+*.swo
