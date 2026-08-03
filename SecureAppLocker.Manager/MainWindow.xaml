@@ -75,6 +75,10 @@
 							<ToggleSwitch x:Name="DeactivateSwitch" OnContent="Active" OffContent="Disabled" IsOn="True" Toggled="DeactivateSwitch_Toggled" HorizontalAlignment="Left"/>
 						</StackPanel>
 						<StackPanel Spacing="12" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" Padding="16" CornerRadius="8" BorderThickness="1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+							<TextBlock Text="Audit Logging" Style="{ThemeResource BodyStrongTextBlockStyle}" />
+							<ToggleSwitch x:Name="EnableLoggingSwitch" OnContent="Enabled" OffContent="Disabled" IsOn="True" HorizontalAlignment="Left"/>
+						</StackPanel>
+						<StackPanel Spacing="12" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" Padding="16" CornerRadius="8" BorderThickness="1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
 							<TextBlock Text="Unlock Mode" Style="{ThemeResource BodyStrongTextBlockStyle}" />
 							<RadioButtons x:Name="UnlockModeRadioButtons">
 								<RadioButton Content="App Specific" Tag="AppSpecific" />

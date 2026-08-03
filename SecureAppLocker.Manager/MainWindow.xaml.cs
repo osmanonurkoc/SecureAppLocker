@@ -168,6 +168,7 @@ namespace SecureAppLocker.Manager
                     tempConfig.PollingIntervalMs = _config.PollingIntervalMs;
                     tempConfig.UnlockMode = _config.UnlockMode;
                     tempConfig.IsActive = _config.IsActive;
+                    tempConfig.EnableLogging = _config.EnableLogging;
                     tempConfig.ProtectedApps = _config.ProtectedApps.ToList();
 
                     tempConfig.MasterPasswordHash = HashDPAPIPassword(newPasswordBox.Password);
@@ -232,6 +233,11 @@ namespace SecureAppLocker.Manager
             if (DeactivateSwitch != null)
             {
                 DeactivateSwitch.IsOn = _config.IsActive;
+            }
+
+            if (EnableLoggingSwitch != null)
+            {
+                EnableLoggingSwitch.IsOn = _config.EnableLogging;
             }
 
             AppsList.Clear();
@@ -405,6 +411,7 @@ namespace SecureAppLocker.Manager
 
             _config.TimeoutMinutes = (int)TimeoutNumberBox.Value;
             _config.PollingIntervalMs = (int)PollingIntervalBox.Value;
+            _config.EnableLogging = EnableLoggingSwitch.IsOn;
             await SaveConfigAndNotifyAsync("Security Settings saved successfully.");
         }
 
@@ -446,6 +453,7 @@ namespace SecureAppLocker.Manager
             tempConfig.PollingIntervalMs = _config.PollingIntervalMs;
             tempConfig.UnlockMode = _config.UnlockMode;
             tempConfig.IsActive = _config.IsActive;
+            tempConfig.EnableLogging = _config.EnableLogging;
             tempConfig.ProtectedApps = _config.ProtectedApps.ToList();
 
             tempConfig.MasterPasswordHash = HashDPAPIPassword(newPass);
@@ -586,6 +594,7 @@ namespace SecureAppLocker.Manager
                 freshConfig.PollingIntervalMs = _config.PollingIntervalMs;
                 freshConfig.UnlockMode = _config.UnlockMode;
                 freshConfig.IsActive = _config.IsActive;
+                freshConfig.EnableLogging = _config.EnableLogging;
                 freshConfig.ProtectedApps = _config.ProtectedApps.ToList();
 
                 bool success = await ConfigManager.SaveConfigViaIPCAsync(freshConfig);
