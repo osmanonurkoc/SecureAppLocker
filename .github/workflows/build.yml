@@ -1,0 +1,88 @@
+name: Build Windows Executables
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch: # Allows manual triggering
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: write # Mandatory for creating releases
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 10.0.x
+
+    - name: Restore Dependencies
+      run: dotnet restore SecureAppLocker.sln -r win-x64
+
+    - name: Build Service (Background Watchdog)
+      run: |
+        dotnet publish SecureAppLocker.Service/SecureAppLocker.Service.csproj `
+          -c Release `
+          -r win-x64 `
+          --self-contained true `
+          --no-restore `
+          -o ./publish/Service
+
+    - name: Build Manager (Dashboard)
+      run: |
+        dotnet publish SecureAppLocker.Manager/SecureAppLocker.Manager.csproj `
+          -c Release `
+          -r win-x64 `
+          --self-contained true `
+          --no-restore `
+          -o ./publish/Manager
+
+    - name: Build UI (Password Prompt)
+      run: |
+        dotnet publish SecureAppLocker.UI/SecureAppLocker.UI.csproj `
+          -c Release `
+          -r win-x64 `
+          --self-contained true `
+          --no-restore `
+          -o ./publish/UI
+
+    - name: Zip Release Artifacts
+      shell: pwsh
+      run: |
+        Compress-Archive -Path ./publish/* -DestinationPath ./SecureAppLocker-Release-v1.0.${{ github.run_number }}.zip
+
+    - name: Upload Build Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: SecureAppLocker-Windows-x64
+        path: ./SecureAppLocker-Release-v1.0.${{ github.run_number }}.zip
+
+    - name: Create GitHub Release
+      if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: v1.0.${{ github.run_number }}
+        name: SecureAppLocker Build v1.0.${{ github.run_number }}
+        files: SecureAppLocker-Release-v1.0.${{ github.run_number }}.zip
+        body: |
+          ### 🔒 SecureAppLocker - Automatic Build
+          
+          This is an automated release of the modified SecureAppLocker.
+          
+          **Changes in this build:**
+          - 📝 **Audit Logging:** All blocked attempts and unlocks are now recorded to `C:\ProgramData\SecureAppLocker\audit.log`.
+          - 🛠️ **Optimized Build:** Fixed architecture errors and removed unnecessary build warnings.
+          - 🚀 **Self-Contained:** These executables include the .NET runtime, so they work out of the box.
+          
+          **Included Files:**
+          - `SecureAppLocker.Service.exe`: The background watchdog.
+          - `SecureAppLocker.Manager.exe`: The settings dashboard.
+          - `SecureAppLocker.UI.exe`: The password prompt interface.
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

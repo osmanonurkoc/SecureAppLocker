@@ -160,7 +160,7 @@ namespace SecureAppLocker.Core
                 return true;
             }
             
-            throw new Exception($"Server rejected the config. Response: {response}");
+            throw new Exception($"Server rejected the config. Response: {response ?? "NULL"}");
         }
 
         private static LockerConfig CreateDefaultConfig(string configPath)
