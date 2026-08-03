@@ -5,7 +5,12 @@ on:
     branches: [ main, master ]
   pull_request:
     branches: [ main, master ]
-  workflow_dispatch: # Allows manual triggering
+  workflow_dispatch:
+    inputs:
+      version_tag:
+        description: 'Release Version Tag (e.g. v1.1.1)'
+        required: true
+        default: 'v1.1.1'
 
 jobs:
   build:
@@ -55,34 +60,23 @@ jobs:
     - name: Zip Release Artifacts
       shell: pwsh
       run: |
-        Compress-Archive -Path ./publish/* -DestinationPath ./SecureAppLocker-Release-v1.0.${{ github.run_number }}.zip
+        $version = "${{ github.event.inputs.version_tag }}"
+        if ([string]::IsNullOrEmpty($version)) { $version = "v1.1.$(Get-Date -Format 'yyMMdd')" }
+        Compress-Archive -Path ./publish/* -DestinationPath ./SecureAppLocker-Release-$version.zip
 
     - name: Upload Build Artifacts
       uses: actions/upload-artifact@v4
       with:
         name: SecureAppLocker-Windows-x64
-        path: ./SecureAppLocker-Release-v1.0.${{ github.run_number }}.zip
+        path: ./SecureAppLocker-Release-*.zip
 
     - name: Create GitHub Release
-      if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
-      uses: softprops/action-gh-release@v2
-      with:
-        tag_name: v1.0.${{ github.run_number }}
-        name: SecureAppLocker Build v1.0.${{ github.run_number }}
-        files: SecureAppLocker-Release-v1.0.${{ github.run_number }}.zip
-        body: |
-          ### 🔒 SecureAppLocker - Automatic Build
-          
-          This is an automated release of the modified SecureAppLocker.
-          
-          **Changes in this build:**
-          - 📝 **Audit Logging:** All blocked attempts and unlocks are now recorded to `C:\ProgramData\SecureAppLocker\audit.log`.
-          - 🛠️ **Optimized Build:** Fixed architecture errors and removed unnecessary build warnings.
-          - 🚀 **Self-Contained:** These executables include the .NET runtime, so they work out of the box.
-          
-          **Included Files:**
-          - `SecureAppLocker.Service.exe`: The background watchdog.
-          - `SecureAppLocker.Manager.exe`: The settings dashboard.
-          - `SecureAppLocker.UI.exe`: The password prompt interface.
-      env:
+    if: github.event_name == 'workflow_dispatch'
+    uses: softprops/action-gh-release@v2
+    with:
+        tag_name: ${{ github.event.inputs.version_tag }}
+        name: SecureAppLocker ${{ github.event.inputs.version_tag }}
+        files: SecureAppLocker-Release-${{ github.event.inputs.version_tag }}.zip
+        generate_release_notes: true
+    env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
