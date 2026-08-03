@@ -494,7 +494,7 @@ namespace SecureAppLocker.Service
 										var parts = request.Split('|');
 										if (parts.Length >= 3)
 										{
-											string appKey = parts[1];
+											string appKey = parts[1].Trim().ToLowerInvariant();
 											string password = parts[2];
 											var currentConfig = _appConfig;
 
