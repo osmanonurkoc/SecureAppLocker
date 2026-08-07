@@ -516,19 +516,20 @@ namespace SecureAppLocker.Service
 
 											if (isValid)
 											{
-												int timeout = currentConfig.TimeoutMinutes > 0 ? currentConfig.TimeoutMinutes : 5;
+												int configTimeout = currentConfig.TimeoutMinutes >= 0 ? currentConfig.TimeoutMinutes : 5;
+												TimeSpan cacheDuration = configTimeout == 0 ? TimeSpan.FromSeconds(15) : TimeSpan.FromMinutes(configTimeout);
 
 												if (string.Equals(currentConfig.UnlockMode, "Global", StringComparison.OrdinalIgnoreCase))
 												{
-													_authCache["GLOBAL_UNLOCK"] = DateTime.Now.AddMinutes(timeout);
-													_logger.LogInformation($"GLOBAL Access Granted for {timeout} minutes.");
-													if (currentConfig.EnableLogging) LogManager.WriteLog("UNLOCK_GLOBAL", "ALL", $"Timeout: {timeout}m");
+													_authCache["GLOBAL_UNLOCK"] = DateTime.Now.Add(cacheDuration);
+													_logger.LogInformation($"GLOBAL Access Granted for {cacheDuration.TotalMinutes} minutes.");
+													if (currentConfig.EnableLogging) LogManager.WriteLog("UNLOCK_GLOBAL", "ALL", $"Timeout: {configTimeout}m (Instant={configTimeout==0})");
 												}
 												else
 												{
-													_authCache[appKey] = DateTime.Now.AddMinutes(timeout);
-													_logger.LogInformation($"Access Granted for {appKey} for {timeout} minutes.");
-													if (currentConfig.EnableLogging) LogManager.WriteLog("UNLOCK_APP", appKey, $"Timeout: {timeout}m");
+													_authCache[appKey] = DateTime.Now.Add(cacheDuration);
+													_logger.LogInformation($"Access Granted for {appKey} for {cacheDuration.TotalMinutes} minutes.");
+													if (currentConfig.EnableLogging) LogManager.WriteLog("UNLOCK_APP", appKey, $"Timeout: {configTimeout}m (Instant={configTimeout==0})");
 												}
 
 												if (pipeServer.IsConnected)

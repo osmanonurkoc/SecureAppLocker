@@ -251,7 +251,7 @@ namespace SecureAppLocker.Manager
             else
                 UnlockModeRadioButtons.SelectedIndex = 0;
 
-            TimeoutNumberBox.Value = _config.TimeoutMinutes > 0 ? _config.TimeoutMinutes : 5;
+            TimeoutNumberBox.Value = _config.TimeoutMinutes >= 0 ? _config.TimeoutMinutes : 5;
             PollingIntervalBox.Value = _config.PollingIntervalMs > 0 ? _config.PollingIntervalMs : 300;
 
             bool isDefaultPassword = VerifyDPAPIPassword("1234", _config.MasterPasswordHash);

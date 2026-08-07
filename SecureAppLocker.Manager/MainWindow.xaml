@@ -86,7 +86,7 @@
 							</RadioButtons>
 							
 							<TextBlock Text="Timeout Duration (Minutes)" Margin="0,8,0,0" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
-							<NumberBox x:Name="TimeoutNumberBox" Minimum="1" Maximum="1440" Value="5" SpinButtonPlacementMode="Inline" HorizontalAlignment="Stretch"/>
+							<NumberBox x:Name="TimeoutNumberBox" Minimum="0" Maximum="1440" Value="5" SpinButtonPlacementMode="Inline" HorizontalAlignment="Stretch"/>
 							
 							<NumberBox x:Name="PollingIntervalBox" Header="Process Scanning Interval (ms)" Value="300" Minimum="50" Maximum="2000" SpinButtonPlacementMode="Inline" Margin="0,16,0,0" ToolTipService.ToolTip="Lower values lock apps faster but use more CPU." />
 							
