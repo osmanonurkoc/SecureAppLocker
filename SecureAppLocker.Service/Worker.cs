@@ -345,6 +345,17 @@ namespace SecureAppLocker.Service
 			{
 				if (p.HasExited) return;
 
+				// --- 1. SESSION 0 (OS BACKGROUND SERVICES) BYPASS ---
+				try
+				{
+					if (p.SessionId == 0)
+					{
+						_logger.LogInformation($"Auto-bypass granted to {procName} (PID: {p.Id}) because it runs in Session 0 (OS Background Service).");
+						return;
+					}
+				}
+				catch { }
+
 				bool isGlobalUnlocked = string.Equals(_appConfig.UnlockMode, "Global", StringComparison.OrdinalIgnoreCase) &&
 										_authCache.TryGetValue("GLOBAL_UNLOCK", out DateTime globalExpiry) &&
 										DateTime.Now < globalExpiry;
@@ -356,10 +367,32 @@ namespace SecureAppLocker.Service
 
 				bool isParentApproved = false;
 				int parentId = GetParentProcessId(p);
-
-				if (parentId > 0 && _approvedPids.ContainsKey(parentId))
+				
+				if (parentId > 0)
 				{
-					isParentApproved = true;
+					try
+					{
+						if (_approvedPids.ContainsKey(parentId))
+						{
+							isParentApproved = true;
+						}
+						else
+						{
+							// --- 2. OS CORE PARENT BYPASS ---
+							using (var parentProcess = Process.GetProcessById(parentId))
+							{
+								string parentName = parentProcess.ProcessName.ToLowerInvariant();
+								if (parentName == "svchost" || parentName == "services" || parentName == "taskhostw" || parentName == "sihost")
+								{
+									isParentApproved = true;
+									_logger.LogInformation($"Auto-bypass granted to {procName} because it was spawned by OS service: {parentName}");
+								}
+							}
+						}
+					}
+					catch 
+					{ 
+					}
 				}
 
 				if (isGlobalUnlocked || isAppUnlocked || isActiveAppImmunity || isParentApproved)
