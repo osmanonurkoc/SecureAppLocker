@@ -18,6 +18,28 @@ namespace SecureAppLocker.Manager
     {
         private LockerConfig _config = new LockerConfig();
         public ObservableCollection<AppLockRule> AppsList { get; set; } = new ObservableCollection<AppLockRule>();
+        public ObservableCollection<AppLockRule> SystemAppsList { get; set; } = new ObservableCollection<AppLockRule>();
+
+        private readonly AppLockRule[] _systemTools = new AppLockRule[]
+        {
+            // Command Line & Terminals
+            new AppLockRule { Name = "cmd.exe", OriginalFileName = "Cmd.Exe", IsEnabled = true },
+            new AppLockRule { Name = "powershell.exe", OriginalFileName = "PowerShell.EXE", IsEnabled = true },
+            new AppLockRule { Name = "pwsh.exe", OriginalFileName = "pwsh.dll", IsEnabled = true }, // PowerShell Core
+            new AppLockRule { Name = "WindowsTerminal.exe", OriginalFileName = "WindowsTerminal.exe", IsEnabled = true },
+            new AppLockRule { Name = "wt.exe", OriginalFileName = "wt.exe", IsEnabled = true }, // Windows Terminal Alias
+            
+            // Scripting Engines
+            new AppLockRule { Name = "wscript.exe", OriginalFileName = "wscript.exe", IsEnabled = true },
+            new AppLockRule { Name = "cscript.exe", OriginalFileName = "cscript.exe", IsEnabled = true },
+            
+            // System Management & Registry
+            new AppLockRule { Name = "mmc.exe", OriginalFileName = "mmc.exe", IsEnabled = true },
+            new AppLockRule { Name = "net.exe", OriginalFileName = "net.exe", IsEnabled = true },
+            new AppLockRule { Name = "wmic.exe", OriginalFileName = "wmic.exe", IsEnabled = true }, // Legacy Support
+            new AppLockRule { Name = "msconfig.exe", OriginalFileName = "msconfig.exe", IsEnabled = true },
+            new AppLockRule { Name = "regedit.exe", OriginalFileName = "regedit.exe", IsEnabled = true }
+        };
 
         private const string PasswordRegex = @"^[A-Za-z0-9!@#$%^&*()_+\-=\[\]{}|;:,.<>?/_""]+$";
 
@@ -230,20 +252,32 @@ namespace SecureAppLocker.Manager
         {
             _config = ConfigManager.LoadConfig();
 
-            if (DeactivateSwitch != null)
-            {
-                DeactivateSwitch.IsOn = _config.IsActive;
-            }
-
-            if (EnableLoggingSwitch != null)
-            {
-                EnableLoggingSwitch.IsOn = _config.EnableLogging;
-            }
+            if (DeactivateSwitch != null) DeactivateSwitch.IsOn = _config.IsActive;
+            if (EnableLoggingSwitch != null) EnableLoggingSwitch.IsOn = _config.EnableLogging;
 
             AppsList.Clear();
+            SystemAppsList.Clear();
+
             foreach (var app in _config.ProtectedApps)
             {
-                AppsList.Add(app);
+                if (_systemTools.Any(st => st.Name.Equals(app.Name, StringComparison.OrdinalIgnoreCase)))
+                    SystemAppsList.Add(app);
+                else
+                    AppsList.Add(app);
+            }
+
+            if (HardeningSwitch != null)
+            {
+                bool allLocked = _systemTools.All(tool =>
+                _config.ProtectedApps.Any(app => app.Name.Equals(tool.Name, StringComparison.OrdinalIgnoreCase)));
+
+                HardeningSwitch.Toggled -= HardeningSwitch_Toggled;
+                HardeningSwitch.IsOn = allLocked;
+
+                if (SystemToolsContainer != null)
+                    SystemToolsContainer.Visibility = allLocked ? Visibility.Visible : Visibility.Collapsed;
+
+                HardeningSwitch.Toggled += HardeningSwitch_Toggled;
             }
 
             if (_config.UnlockMode == "Global")
@@ -357,6 +391,12 @@ namespace SecureAppLocker.Manager
                     
                     string originalName = versionInfo.OriginalFilename ?? string.Empty;
                     string productName = versionInfo.ProductName ?? string.Empty;
+
+                    if (productName.Contains("Windows", StringComparison.OrdinalIgnoreCase) && 
+                        productName.Contains("Operating System", StringComparison.OrdinalIgnoreCase))
+                    {
+                        productName = string.Empty;
+                    }
                     
                     // Fallback: If the developer left metadata empty, use the raw file name directly.
                     if (string.IsNullOrWhiteSpace(originalName) && string.IsNullOrWhiteSpace(productName))
@@ -364,8 +404,15 @@ namespace SecureAppLocker.Manager
                         originalName = fileName;
                     }
 
-                    // Add to the list if the application hasn't been added already
-                    if (!AppsList.Any(x => x.Name.Equals(fileName, StringComparison.OrdinalIgnoreCase)))
+                    bool isDuplicate = AppsList.Any(x => 
+                                           x.Name.Equals(fileName, StringComparison.OrdinalIgnoreCase) || 
+                                           (!string.IsNullOrEmpty(originalName) && !string.IsNullOrEmpty(x.OriginalFileName) && x.OriginalFileName.Equals(originalName, StringComparison.OrdinalIgnoreCase))) 
+                                       || 
+                                       SystemAppsList.Any(x => 
+                                           x.Name.Equals(fileName, StringComparison.OrdinalIgnoreCase) || 
+                                           (!string.IsNullOrEmpty(originalName) && !string.IsNullOrEmpty(x.OriginalFileName) && x.OriginalFileName.Equals(originalName, StringComparison.OrdinalIgnoreCase)));
+
+                    if (!isDuplicate)
                     {
                         AppsList.Add(new AppLockRule 
                         { 
@@ -397,8 +444,47 @@ namespace SecureAppLocker.Manager
 
         private async void SaveApps_Click(object sender, RoutedEventArgs e)
         {
-            _config.ProtectedApps = AppsList.ToList();
+            _config.ProtectedApps = AppsList.Concat(SystemAppsList)
+                                            .GroupBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
+                                            .Select(g => g.First())
+                                            .ToList();
             await SaveConfigAndNotifyAsync();
+        }
+
+        private async void HardeningSwitch_Toggled(object sender, RoutedEventArgs e)
+        {
+            if (_config == null || HardeningSwitch == null || SystemToolsContainer == null) return;
+
+            bool isEnabled = HardeningSwitch.IsOn;
+            SystemAppsList.Clear();
+
+            if (isEnabled)
+            {
+                var duplicates = AppsList.Where(a => _systemTools.Any(st => st.Name.Equals(a.Name, StringComparison.OrdinalIgnoreCase))).ToList();
+                foreach (var dup in duplicates)
+                {
+                    AppsList.Remove(dup);
+                }
+
+                foreach (var tool in _systemTools)
+                {
+                    SystemAppsList.Add(new AppLockRule
+                    {
+                        Name = tool.Name,
+                        OriginalFileName = tool.OriginalFileName,
+                        IsEnabled = true
+                    });
+                }
+            }
+
+            SystemToolsContainer.Visibility = isEnabled ? Visibility.Visible : Visibility.Collapsed;
+
+            _config.ProtectedApps = AppsList.Concat(SystemAppsList)
+                                            .GroupBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
+                                            .Select(g => g.First())
+                                            .ToList();
+
+            await SaveConfigAndNotifyAsync(isEnabled ? "System Hardening Enabled: OS tools are locked." : "System Hardening Disabled.");
         }
 
         private async void SaveSettings_Click(object sender, RoutedEventArgs e)

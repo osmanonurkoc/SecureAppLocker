@@ -38,7 +38,7 @@ namespace SecureAppLocker.Service
 
 		private readonly ConcurrentDictionary<string, DateTime> _authCache;
 		private readonly ConcurrentDictionary<string, AppInfo> _pendingApps;
-		private readonly ConcurrentDictionary<string, bool> _activePrompts;
+		private readonly ConcurrentDictionary<string, DateTime> _activePrompts;
 		private readonly ConcurrentDictionary<int, byte> _knownPids;
 		private readonly ConcurrentDictionary<int, string> _approvedPids;
 		private readonly ConcurrentDictionary<int, bool> _safePids;
@@ -51,7 +51,7 @@ namespace SecureAppLocker.Service
 			_logger = logger;
 			_authCache = new ConcurrentDictionary<string, DateTime>();
 			_pendingApps = new ConcurrentDictionary<string, AppInfo>();
-			_activePrompts = new ConcurrentDictionary<string, bool>();
+			_activePrompts = new ConcurrentDictionary<string, DateTime>();
 			_knownPids = new ConcurrentDictionary<int, byte>();
 			_approvedPids = new ConcurrentDictionary<int, string>();
 			_safePids = new ConcurrentDictionary<int, bool>();
@@ -335,11 +335,22 @@ namespace SecureAppLocker.Service
 
 					if (string.Equals(_appConfig.UnlockMode, "Global", StringComparison.OrdinalIgnoreCase))
 					{
+						var keys = _activePrompts.Keys.ToList();
+						foreach (var k in keys)
+						{
+							if (_activePrompts.TryGetValue(k, out DateTime exp) && DateTime.Now > exp)
+								_activePrompts.TryRemove(k, out _);
+						}
+
 						if (_activePrompts.Count > 0) blockPrompt = true;
 					}
 					else
 					{
-						if (_activePrompts.ContainsKey(appKey)) blockPrompt = true;
+						if (_activePrompts.TryGetValue(appKey, out DateTime expiry))
+						{
+							if (DateTime.Now < expiry) blockPrompt = true;
+							else _activePrompts.TryRemove(appKey, out _);
+						}
 					}
 
 					if (blockPrompt)
@@ -378,7 +389,7 @@ namespace SecureAppLocker.Service
 		private void TriggerPasswordUI(string appKey, string targetPath)
 		{
 			// Mark the password prompt as triggered
-			_activePrompts[appKey] = true;
+			_activePrompts[appKey] = DateTime.Now.AddMinutes(2);
 			_pendingApps[appKey] = new AppInfo { FilePath = targetPath };
 
 			Task.Run(async () =>
@@ -527,7 +538,22 @@ namespace SecureAppLocker.Service
 												}
 												else
 												{
-													_authCache[appKey] = DateTime.Now.Add(cacheDuration);
+													bool isTerminalEcosystem = appKey == "windowsterminal" || appKey == "wt" || appKey == "powershell" || appKey == "cmd" || appKey == "pwsh" || appKey == "openconsole";
+
+													if (isTerminalEcosystem)
+													{
+														_authCache["cmd"] = DateTime.Now.Add(cacheDuration);
+														_authCache["powershell"] = DateTime.Now.Add(cacheDuration);
+														_authCache["pwsh"] = DateTime.Now.Add(cacheDuration);
+														_authCache["windowsterminal"] = DateTime.Now.Add(cacheDuration);
+														_authCache["wt"] = DateTime.Now.Add(cacheDuration);
+														_authCache["openconsole"] = DateTime.Now.Add(cacheDuration);
+													}
+													else
+													{
+														_authCache[appKey] = DateTime.Now.Add(cacheDuration);
+													}
+
 													_logger.LogInformation($"Access Granted for {appKey} for {cacheDuration.TotalMinutes} minutes.");
 													if (currentConfig.EnableLogging) LogManager.WriteLog("UNLOCK_APP", appKey, $"Timeout: {configTimeout}m (Instant={configTimeout==0})");
 												}
@@ -563,6 +589,18 @@ namespace SecureAppLocker.Service
 											string appKey = parts[1];
 											_pendingApps.TryRemove(appKey, out _);
 											_activePrompts.TryRemove(appKey, out _);
+
+											bool isTerminalEcosystem = appKey == "windowsterminal" || appKey == "wt" || appKey == "powershell" || appKey == "cmd" || appKey == "pwsh" || appKey == "openconsole";
+											if (isTerminalEcosystem)
+											{
+												_activePrompts.TryRemove("cmd", out _);
+												_activePrompts.TryRemove("powershell", out _);
+												_activePrompts.TryRemove("pwsh", out _);
+												_activePrompts.TryRemove("windowsterminal", out _);
+												_activePrompts.TryRemove("wt", out _);
+												_activePrompts.TryRemove("openconsole", out _);
+											}
+
 											_logger.LogInformation($"Prompt cancelled by user. Lock cleared for: {appKey}");
 										}
 									}
@@ -644,6 +682,7 @@ namespace SecureAppLocker.Service
 												Interlocked.Exchange(ref _appConfig, config);
 												_authCache.Clear();
 												_approvedPids.Clear();
+												_safePids.Clear();
 												_logger.LogInformation("Configuration updated securely via IPC.");
 												if (pipeServer.IsConnected)
 												{

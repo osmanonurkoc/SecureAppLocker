@@ -4,6 +4,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:core="using:SecureAppLocker.Core"
     mc:Ignorable="d"
     Title="SecureAppLocker Manager">
 
@@ -45,7 +46,7 @@
 							<Button x:Name="BrowseAppButton" Content="Browse &amp; Add Executable..." Click="BrowseApp_Click" HorizontalAlignment="Stretch" />
 
 							<TextBlock Text="Blocked Executables" Style="{ThemeResource BodyStrongTextBlockStyle}" Margin="0,8,0,0" />
-							<ListView x:Name="AppsListView" BorderThickness="1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" CornerRadius="8" Height="220" HorizontalAlignment="Stretch">
+							<ListView x:Name="AppsListView" BorderThickness="1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" CornerRadius="8" MinHeight="60" MaxHeight="250" HorizontalAlignment="Stretch">
 								<ListView.ItemTemplate>
 									<DataTemplate>
 										<Grid Padding="8,4">
@@ -64,6 +65,25 @@
 									</DataTemplate>
 								</ListView.ItemTemplate>
 							</ListView>
+
+							<!-- System Hardening Tools Container -->
+							<StackPanel x:Name="SystemToolsContainer" Visibility="Collapsed" Margin="0,8,0,8">
+								<Border BorderThickness="0,1,0,0" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" Margin="0,0,0,12" />
+								<StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">
+									<FontIcon Glyph="&#xEA18;" Foreground="Orange" FontSize="14"/>
+									<TextBlock Text="System Hardening Tools (Managed)" FontWeight="SemiBold" Foreground="Orange"/>
+								</StackPanel>
+								<ListView ItemsSource="{x:Bind SystemAppsList}" SelectionMode="None" BorderThickness="1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" CornerRadius="8" Height="150" HorizontalAlignment="Stretch">
+									<ListView.ItemTemplate>
+										<DataTemplate x:DataType="core:AppLockRule">
+											<Grid Padding="8,4">
+												<TextBlock Text="{x:Bind Name}" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+											</Grid>
+										</DataTemplate>
+									</ListView.ItemTemplate>
+								</ListView>
+							</StackPanel>
+
 							<Button Content="Save Configuration" Style="{ThemeResource AccentButtonStyle}" Click="SaveApps_Click" HorizontalAlignment="Stretch"/>
 						</StackPanel>
 					</StackPanel>
@@ -74,10 +94,18 @@
 							<TextBlock Text="Master Protection Switch" Style="{ThemeResource BodyStrongTextBlockStyle}" />
 							<ToggleSwitch x:Name="DeactivateSwitch" OnContent="Active" OffContent="Disabled" IsOn="True" Toggled="DeactivateSwitch_Toggled" HorizontalAlignment="Left"/>
 						</StackPanel>
+
+						<!-- System Hardening Switch -->
+						<StackPanel Spacing="12" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" Padding="16" CornerRadius="8" BorderThickness="1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+							<TextBlock Text="System Hardening" Style="{ThemeResource BodyStrongTextBlockStyle}" />
+							<ToggleSwitch x:Name="HardeningSwitch" Header="Lock OS Management Tools" OnContent="Enabled" OffContent="Disabled" Toggled="HardeningSwitch_Toggled" HorizontalAlignment="Left"/>
+						</StackPanel>
+
 						<StackPanel Spacing="12" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" Padding="16" CornerRadius="8" BorderThickness="1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
 							<TextBlock Text="Audit Logging" Style="{ThemeResource BodyStrongTextBlockStyle}" />
 							<ToggleSwitch x:Name="EnableLoggingSwitch" OnContent="Enabled" OffContent="Disabled" IsOn="True" HorizontalAlignment="Left"/>
 						</StackPanel>
+                        
 						<StackPanel Spacing="12" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" Padding="16" CornerRadius="8" BorderThickness="1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
 							<TextBlock Text="Unlock Mode" Style="{ThemeResource BodyStrongTextBlockStyle}" />
 							<RadioButtons x:Name="UnlockModeRadioButtons">
