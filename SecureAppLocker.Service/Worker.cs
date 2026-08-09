@@ -24,6 +24,20 @@ namespace SecureAppLocker.Service
 
 	public class Worker : BackgroundService
 	{
+		[System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+		private struct PROCESS_BASIC_INFORMATION
+		{
+			public IntPtr Reserved1;
+			public IntPtr PebBaseAddress;
+			public IntPtr Reserved2_0;
+			public IntPtr Reserved2_1;
+			public IntPtr UniqueProcessId;
+			public IntPtr InheritedFromUniqueProcessId;
+		}
+
+		[System.Runtime.InteropServices.DllImport("ntdll.dll")]
+		private static extern int NtQueryInformationProcess(IntPtr processHandle, int processInformationClass, ref PROCESS_BASIC_INFORMATION processInformation, int processInformationLength, out int returnLength);
+
 		[System.Runtime.InteropServices.DllImport("wtsapi32.dll", SetLastError = true)]
 		private static extern bool WTSQuerySessionInformation(IntPtr hServer, int sessionId, int wtsInfoClass, out IntPtr ppBuffer, out uint pBytesReturned);
 
@@ -308,6 +322,23 @@ namespace SecureAppLocker.Service
 			}
 		}
 
+		private int GetParentProcessId(Process p)
+		{
+			try
+			{
+				PROCESS_BASIC_INFORMATION pbi = new PROCESS_BASIC_INFORMATION();
+				int status = NtQueryInformationProcess(p.Handle, 0, ref pbi, System.Runtime.InteropServices.Marshal.SizeOf(pbi), out int returnLength);
+				if (status == 0)
+				{
+					return pbi.InheritedFromUniqueProcessId.ToInt32();
+				}
+			}
+			catch 
+			{ 
+			}
+			return -1;
+		}
+
 		private void HandleDetectedProcess(Process p, string appKey, string procName)
 		{
 			try
@@ -323,7 +354,15 @@ namespace SecureAppLocker.Service
 
 				bool isActiveAppImmunity = _approvedPids.Values.Contains(appKey);
 
-				if (isGlobalUnlocked || isAppUnlocked || isActiveAppImmunity)
+				bool isParentApproved = false;
+				int parentId = GetParentProcessId(p);
+
+				if (parentId > 0 && _approvedPids.ContainsKey(parentId))
+				{
+					isParentApproved = true;
+				}
+
+				if (isGlobalUnlocked || isAppUnlocked || isActiveAppImmunity || isParentApproved)
 				{
 					_approvedPids.TryAdd(p.Id, appKey);
 					return;
@@ -423,7 +462,6 @@ namespace SecureAppLocker.Service
 						}
 						catch (Exception ex)
 						{
-							// Removed "break;". If the pipe doesn't exist (yet), it throws an exception; it should keep retrying.
 							currentRetry++;
 							_logger.LogError($"Failed to contact UI companion via pipe: {ex.Message}. Retry {currentRetry}/{maxRetries}...");
 							await Task.Delay(500);
