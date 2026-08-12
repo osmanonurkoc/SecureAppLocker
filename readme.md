@@ -23,7 +23,7 @@ Instead of cluttering the main page, you can view the Manager Dashboard and Pass
 
 ## 🛡️ SECURITY NOTES
 
-**IMPORTANT - PLEASE READ:**
+**IMPORTANT PLEASE READ:**
 This software is designed to enforce application locking on shared or personal computers. While it employs strong system-level defenses, it is important to understand its boundaries based on Windows user privileges.
 
 **🛡️ Standard User Protection (Highly Secure):**
@@ -31,12 +31,16 @@ For a standard, non-admin Windows account, this locker is virtually unbreakable:
 * **Service-Level Execution:** The core watchdog runs as a Windows NT Service under the `SYSTEM` account. A Standard User cannot stop, pause, or kill this service via Task Manager.
 * **ACL File Protection:** Configuration files and encrypted password hashes are protected by strict Access Control Lists (ACLs). Standard users cannot read, modify, or delete the lock rules or password files to bypass the system.
 
-**⚠️ Local Administrator Bypasses:**
-Because the Windows OS inherently grants ultimate control to Local Administrators, a user with Admin privileges *can* bypass this software by:
-* Opening Task Manager with elevated (administrator) rights to kill the background service.
-* Taking ownership of the protected configuration folders to manually delete the password files.
-* Disabling the NT Service via `services.msc`.
-* Booting Windows into Safe Mode (which prevents third-party services from starting).
+**⚠️ Local Administrator Bypasses & Mitigation:**
+Because the Windows OS inherently grants ultimate control to Local Administrators, a user with Admin privileges theoretically has the power to bypass this software. Historically, an admin could bypass the locker by taking ownership of configuration folders, altering registry keys, or disabling the NT Service via `services.msc`.
+
+To combat this, the **System Tools Hardening** feature allows you to lock down the operating system. When enabled, SecureAppLocker actively blocks access to the tools an admin would use to dismantle the service, including:
+* Command Prompt, PowerShell, and Windows Terminal
+* Registry Editor (`regedit.exe`)
+* Microsoft Management Console (`mmc.exe` and `services.msc`)
+* System Configuration (`msconfig.exe`)
+
+Furthermore, the core background service is designed so that forcefully terminating it (for example, via Task Manager) results in a system BSOD. This effectively neutralizes direct kill attempts. With System Tools Hardening enabled, booting Windows into Safe Mode (which prevents third-party services from starting) is the only remaining bypass route for a local administrator.
 
 *(Note: We have mitigated the standard Control Panel uninstallation bypass by implementing an independent, SHA-1 hashed uninstall password requirement during the setup phase).*
 
@@ -54,10 +58,13 @@ Because the Windows OS inherently grants ultimate control to Local Administrator
 
 ## ✨ Key Features
 
-*  **🎛️ Master Protection Switch & Audit Logging:** Need to quickly disable the system for a gaming session or a heavy workflow? Use the global toggle switch on the Manager dashboard to instantly arm or disarm all application locks without losing your configured apps. You can also toggle the audit logging switch on or off from the security settings depending on your preference.
-* **⚡ Smart Metadata Detection:** Doesn't just rely on easily spoofable `.exe` file names. It extracts and verifies the `OriginalFilename` and `ProductName` directly from the executable's metadata to prevent simple rename bypasses.
+* **🎛️ Master Protection Switch & Audit Logging:** Need to quickly disable the system for a gaming session or a heavy workflow? Use the global toggle switch on the Manager dashboard to instantly arm or disarm all application locks without losing your configured apps. You can also toggle the audit logging switch on or off from the security settings depending on your preference.
+* **🛡️ System Tools Hardening:** Instantly protect critical operating system binaries to prevent local administrators from easily bypassing the locker.
+* **🔒 Strict Parent-Child Process Validation:** The background service uses NTDLL to trace the execution tree of any launched process. If a protected application is spawned by a parent process that is currently unlocked or explicitly trusted, the password prompt is bypassed. This ensures legitimate wrapper scripts and background environments function uninterrupted, while unauthorized invocations remain blocked.
+* **🔍 Audit Logging & Trusted Exceptions UI:** Gain precise control over when locked applications can be invoked by other programs. When an unauthorized background call is intercepted (e.g., a browser extension calling `cmd.exe`), the service silently blocks the process and logs the event instead of throwing a password prompt. You can review these logs in the "Audit Logs" tab and choose to "Trust Parent" or "Trust Command" to selectively whitelist specific executions.
+* **⚡ Smart Metadata Detection:** Does not just rely on easily spoofable `.exe` file names. It extracts and verifies the `OriginalFilename` and `ProductName` directly from the executable's metadata to prevent simple rename bypasses.
 * **⏱️ Granular Timeout Controls:** Temporarily unlock specific apps for a custom duration (e.g., 5, 15, or 60 minutes), or use "Global Unlock" to freely use all protected apps for a defined time window.
-* **🛡️ Active Process Immunity & Smart Interception:** The background service is optimized to intercept *newly launching* processes. Once authenticated, that specific running instance and its child processes are granted temporary immunity so your active work is never abruptly killed. This is NOT a permanent whitelist—once the timeout expires and the app is closed, the lock is strictly re-enforced.
+* **🔄 State Management & SafePID Resets:** Internal process caching is strictly maintained. SafePIDs and active application immunities are immediately purged and reset whenever the configuration is updated or the Windows session is locked, ensuring no permissions linger.
 * **⚙️ Adjustable Micro-Polling:** Control the background service's process scanning interval directly from the UI. Find your perfect balance between CPU performance and millisecond-level instant locking.
 * **🔒 Zero-Trust Session Lock (Auto-Reset):** Integrates tightly with Windows Terminal Services (WTS). The moment you lock your Windows session (Win+L), all active unlocked app caches are instantly wiped. Your apps are immediately secure when you step away.
 * **🧱 Fail-Secure Architecture:** If the user forcefully closes the password prompt (UI), the background service enters *Lockdown Mode*. Protected apps will be instantly killed without a prompt, locking out the user completely until the UI is manually restarted.
@@ -69,14 +76,13 @@ Because the Windows OS inherently grants ultimate control to Local Administrator
 
 ### System Requirements
 * **OS:** Windows 10 (Version 1809 or later) or Windows 11.
-* **Framework:** .NET 8.0 Desktop Runtime.
 * **Privileges:** Local Administrator rights are required to install and run the background service.
 
 ### Initial Setup & Installation
 1. **Download:** Grab the latest installer from the **Releases** page.
 2. **Install & Secure:** Run the setup. **Crucial:** During installation, you will be required to set an *Uninstall Password*. Keep this safe! This step also installs the UI components and registers the `SecureAppLocker` background service with Windows.
 3. **First Launch:** Open **SecureAppLocker Manager** from your Start menu. **Important Note:** The default Master Password is **`1234`**. You will need this to authenticate and access the manager interface for the very first time. 
-4. **Change Master Password:** Once inside, it is highly recommended to change the default password immediately via the settings. *Make sure to safely save the generated Recovery Key!*
+4. **Change Master Password:** Once inside, it is highly recommended to change the default password immediately via the settings. Make sure to safely save the generated Recovery Key.
 5. **Add Protected Apps:** The Master Protection Switch is toggled **ON** by default upon launch. Simply use the "Browse" button to securely select target executables. The manager will automatically read the application's internal metadata for accurate tracking.
 
 ## 🧠 How It Works (Under the Hood)
@@ -85,16 +91,16 @@ Windows has strict boundaries between background services and the user's desktop
 1. **The Watchdog (NT Service):** Runs silently as `SYSTEM`. Its only job is to aggressively monitor processes. When a locked app is launched, it kills it instantly and sends a signal through a Named Pipe.
 2. **The UI Companion:** Runs in the user's session. It listens for the service's signals and displays the modern WinUI 3 password prompt. If authenticated, it tells the service to whitelist the app temporarily.
 
-### ⚠️ Known Behavior: Startup Synchronization Delay
-Because the core watchdog runs at the system level (`SYSTEM`), it initializes and begins protecting your computer before you even log into Windows. However, the Password Prompt UI (`SecureAppLocker.UI`) is a user-level application triggered via the Windows Registry upon login. 
+### ⚠️ Known Behaviors
 
-This creates a brief timing gap: **If you attempt to launch a protected application immediately after logging into Windows, the service will instantly lock and kill the app, but the password prompt UI may not appear right away** because it is still booting up in the background. If this happens, simply wait a few seconds for your startup programs to load, and try launching the application again.
+*   **Startup Synchronization Delay:** Because the core watchdog runs at the system level (`SYSTEM`), it initializes and begins protecting your computer before you even log into Windows. However, the Password Prompt UI (`SecureAppLocker.UI`) is a user-level application triggered via the Windows Registry upon login. This creates a brief timing gap. If you attempt to launch a protected application immediately after logging into Windows, the service will instantly lock and kill the app, but the password prompt UI may not appear right away because it is still booting up in the background. If this happens, simply wait a few seconds for your startup programs to load, and try launching the application again.
+*   **Initial Launch Arguments & Elevation Loss:** The Password Prompt UI currently does not support capturing launch arguments or "Run as Administrator" elevation states. If a locked application is launched with specific parameters or elevated privileges, the background service will intercept and kill the initial attempt to display the password prompt. Once authenticated, the UI will successfully launch the application, but it will open as a standard user process without any of the original arguments. To use the application with its intended arguments or admin privileges, you will need to close this default instance and launch your shortcut or script a second time. Since the application is now whitelisted for the timeout duration, the service will not intercept this subsequent launch.
 
 ## 🤖 Development & Vibe Coding
 
 **Full Transparency:** This project was brought to life with the support of **"vibe coding"** (roughly 50% AI assistance).
 
-However, don't let that fool you—this is not raw, unchecked output. **Every single line of code was meticulously reviewed, manually refactored, and heavily battle-tested.** The application underwent long-duration stress tests, edge-case evaluations, and complex IPC/Session 0 deadlock scenarios to ensure maximum stability, zero memory leaks, and a perfectly reliable "fail-secure" environment.
+However, do not let that fool you. This is not raw, unchecked output. Every single line of code was meticulously reviewed, manually refactored, and heavily battle-tested. The application underwent long-duration stress tests, edge-case evaluations, and complex IPC/Session 0 deadlock scenarios to ensure maximum stability, zero memory leaks, and a perfectly reliable "fail-secure" environment.
 
 ## 🤝 Contributing & Bug Reports
 
