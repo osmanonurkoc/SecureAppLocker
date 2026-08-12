@@ -103,8 +103,8 @@
 						</StackPanel>
 
 						<StackPanel Spacing="12" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" Padding="16" CornerRadius="8" BorderThickness="1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
-							<TextBlock Text="Audit Logging" Style="{ThemeResource BodyStrongTextBlockStyle}" />
-							<ToggleSwitch x:Name="EnableLoggingSwitch" OnContent="Enabled" OffContent="Disabled" IsOn="True" HorizontalAlignment="Left"/>
+							<TextBlock Text="File Activity Logging" Style="{ThemeResource BodyStrongTextBlockStyle}" />
+							<ToggleSwitch x:Name="EnableLoggingSwitch" Header="Write killed processes and unlock events to daily text log files." OnContent="Enabled" OffContent="Disabled" IsOn="True" HorizontalAlignment="Left"/>
 						</StackPanel>
                         
 						<StackPanel Spacing="12" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" Padding="16" CornerRadius="8" BorderThickness="1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
