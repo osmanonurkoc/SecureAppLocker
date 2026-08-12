@@ -26,10 +26,11 @@
 		</StackPanel>
 
 		<!-- Segmented Pill Navigation -->
-		<StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8" Margin="0,0,0,16" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" Padding="4" CornerRadius="8" BorderThickness="1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
-			<ToggleButton x:Name="NavApps" Content="Protected Apps" Tag="Apps" Click="SegmentedToggle_Click" IsChecked="True" Width="120" CornerRadius="6" />
-			<ToggleButton x:Name="NavSecurity" Content="Security" Tag="Security" Click="SegmentedToggle_Click" Width="120" CornerRadius="6" />
-			<ToggleButton x:Name="NavPassword" Content="Password" Tag="Password" Click="SegmentedToggle_Click" Width="120" CornerRadius="6" />
+		<StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="4" Margin="0,0,0,16" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" Padding="4" CornerRadius="8" BorderThickness="1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+			<ToggleButton x:Name="NavApps" Content="Apps" Tag="Apps" Click="SegmentedToggle_Click" IsChecked="True" Width="95" CornerRadius="6" />
+			<ToggleButton x:Name="NavSecurity" Content="Security" Tag="Security" Click="SegmentedToggle_Click" Width="95" CornerRadius="6" />
+			<ToggleButton x:Name="NavPassword" Content="Password" Tag="Password" Click="SegmentedToggle_Click" Width="95" CornerRadius="6" />
+			<ToggleButton x:Name="NavAudit" Content="Audit Logs" Tag="Audit" Click="SegmentedToggle_Click" Width="95" CornerRadius="6" />
 		</StackPanel>
 
 		<!-- Main Content Area -->
@@ -136,6 +137,87 @@
 						<StackPanel Spacing="12" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" Padding="16" CornerRadius="8" BorderThickness="1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
 							<TextBlock Text="Recovery Key Backup" Style="{ThemeResource BodyStrongTextBlockStyle}" />
 							<Button Content="View Recovery Key" Click="ViewRecovery_Click" HorizontalAlignment="Stretch" />
+						</StackPanel>
+					</StackPanel>
+
+					<!-- Audit Page -->
+					<StackPanel x:Name="AuditPage" Spacing="16" Visibility="Collapsed" HorizontalAlignment="Stretch" Width="380">
+						<StackPanel Spacing="12" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" Padding="16" CornerRadius="8" BorderThickness="1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+							<TextBlock Text="Trusted Exceptions" Style="{ThemeResource BodyStrongTextBlockStyle}" />
+							
+							<TextBlock Text="Trusted Parents" FontSize="12" FontWeight="SemiBold" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+							<ListView ItemsSource="{x:Bind TrustedParentsList}" BorderThickness="1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" CornerRadius="8" MaxHeight="150" HorizontalAlignment="Stretch">
+								<ListView.ItemTemplate>
+									<DataTemplate>
+										<Grid Padding="8,4">
+											<Grid.ColumnDefinitions>
+												<ColumnDefinition Width="*"/>
+												<ColumnDefinition Width="Auto"/>
+											</Grid.ColumnDefinitions>
+											<TextBlock Text="{Binding}" VerticalAlignment="Center" TextWrapping="Wrap"/>
+											<!-- Untrust Parent Button -->
+											<Button Grid.Column="1" Background="Transparent" Click="UntrustParent_Click" Tag="{Binding}" ToolTipService.ToolTip="Remove Trust" VerticalAlignment="Center">
+												<FontIcon FontSize="14" Glyph="&#xE74D;"/>
+											</Button>
+										</Grid>
+									</DataTemplate>
+								</ListView.ItemTemplate>
+							</ListView>
+
+							<TextBlock Text="Trusted Commands" FontSize="12" FontWeight="SemiBold" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Margin="0,8,0,0"/>
+							<ListView ItemsSource="{x:Bind TrustedCommandsList}" BorderThickness="1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" CornerRadius="8" MaxHeight="250" HorizontalAlignment="Stretch">
+								<ListView.ItemTemplate>
+									<DataTemplate x:DataType="core:TrustedCommandRule">
+										<Grid Padding="8,4">
+											<Grid.ColumnDefinitions>
+												<ColumnDefinition Width="*"/>
+												<ColumnDefinition Width="Auto"/>
+											</Grid.ColumnDefinitions>
+											<StackPanel>
+												<TextBlock Text="{x:Bind ParentProcess}" FontWeight="SemiBold" FontSize="12"/>
+												<TextBlock Text="{x:Bind CommandSnippet}" TextWrapping="Wrap" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+											</StackPanel>
+											<!-- Untrust Command Button -->
+											<Button Grid.Column="1" Background="Transparent" Click="UntrustCommand_Click" Tag="{x:Bind}" ToolTipService.ToolTip="Remove Trust" VerticalAlignment="Center">
+												<FontIcon FontSize="14" Glyph="&#xE74D;"/>
+											</Button>
+										</Grid>
+									</DataTemplate>
+								</ListView.ItemTemplate>
+							</ListView>
+						</StackPanel>
+
+						<StackPanel Spacing="12" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" Padding="16" CornerRadius="8" BorderThickness="1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+							<Grid>
+								<TextBlock Text="Blocked Ghost Processes" Style="{ThemeResource BodyStrongTextBlockStyle}" VerticalAlignment="Center" />
+								<Button Content="Refresh" Click="RefreshAuditLogs_Click" HorizontalAlignment="Right" />
+							</Grid>
+							
+							<ListView ItemsSource="{x:Bind AuditLogs}" BorderThickness="1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" CornerRadius="8" MinHeight="150" MaxHeight="400" HorizontalAlignment="Stretch">
+								<ListView.ItemTemplate>
+									<DataTemplate x:DataType="core:AuditLogEntry">
+										<StackPanel Padding="8,8" Spacing="4" BorderThickness="0,0,0,1" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}">
+											<TextBlock Text="{x:Bind Timestamp}" FontSize="12" Foreground="Gray" />
+											<TextBlock Text="{x:Bind AppKey}" FontWeight="SemiBold" />
+											
+											<StackPanel Orientation="Horizontal" Spacing="8">
+												<TextBlock Text="Parent:" FontWeight="SemiBold" FontSize="12"/>
+												<TextBlock Text="{x:Bind ParentProcess}" FontSize="12" TextWrapping="Wrap" />
+											</StackPanel>
+											
+											<StackPanel Orientation="Horizontal" Spacing="8">
+												<TextBlock Text="CmdLine:" FontWeight="SemiBold" FontSize="12"/>
+												<TextBlock Text="{x:Bind CommandLine}" FontSize="12" TextWrapping="Wrap" />
+											</StackPanel>
+
+											<StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
+												<Button Content="Trust Parent" Tag="{x:Bind ParentProcess}" Click="TrustParent_Click" FontSize="12" Padding="8,4" />
+												<Button Content="Trust Command" Tag="{x:Bind}" Click="TrustCommand_Click" FontSize="12" Padding="8,4" Style="{ThemeResource AccentButtonStyle}" />
+											</StackPanel>
+										</StackPanel>
+									</DataTemplate>
+								</ListView.ItemTemplate>
+							</ListView>
 						</StackPanel>
 					</StackPanel>
 

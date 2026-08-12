@@ -339,6 +339,38 @@ namespace SecureAppLocker.Service
 			return -1;
 		}
 
+        private void LogAudit(string appKey, string parentName, string cmdLine)
+        {
+            try
+            {
+                string programData = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
+                string auditFile = Path.Combine(programData, "SecureAppLocker", "AuditLog.json");
+                
+                List<AuditLogEntry> logs = new List<AuditLogEntry>();
+                if (File.Exists(auditFile))
+                {
+                    string json = File.ReadAllText(auditFile);
+                    logs = JsonSerializer.Deserialize<List<AuditLogEntry>>(json, ConfigManager.JsonOptions) ?? new List<AuditLogEntry>();
+                }
+                
+                if (logs.Count >= 100) logs.RemoveAt(0);
+                
+                logs.Add(new AuditLogEntry 
+                { 
+                    Timestamp = DateTime.Now, 
+                    AppKey = appKey, 
+                    ParentProcess = string.IsNullOrEmpty(parentName) ? "Unknown" : parentName, 
+                    CommandLine = string.IsNullOrEmpty(cmdLine) ? "N/A" : cmdLine
+                });
+                
+                File.WriteAllText(auditFile, JsonSerializer.Serialize(logs, ConfigManager.JsonOptions));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug($"Audit log failed: {ex.Message}");
+            }
+        }
+
 		private void HandleDetectedProcess(Process p, string appKey, string procName)
 		{
 			try
@@ -367,6 +399,7 @@ namespace SecureAppLocker.Service
 
 				bool isParentApproved = false;
 				int parentId = GetParentProcessId(p);
+				string parentName = string.Empty;
 				
 				if (parentId > 0)
 				{
@@ -381,12 +414,20 @@ namespace SecureAppLocker.Service
 							// --- 2. OS CORE PARENT BYPASS ---
 							using (var parentProcess = Process.GetProcessById(parentId))
 							{
-								string parentName = parentProcess.ProcessName.ToLowerInvariant();
-								if (parentName == "svchost" || parentName == "services" || parentName == "taskhostw" || parentName == "sihost")
+								parentName = parentProcess.ProcessName;
+                                string pNameLower = parentName.ToLowerInvariant();
+
+								if (pNameLower == "svchost" || pNameLower == "services" || pNameLower == "taskhostw" || pNameLower == "sihost")
 								{
 									isParentApproved = true;
 									_logger.LogInformation($"Auto-bypass granted to {procName} because it was spawned by OS service: {parentName}");
 								}
+                                else if (_appConfig.TrustedParents.Any(tp => tp.Equals(pNameLower, StringComparison.OrdinalIgnoreCase)) ||
+                                         _appConfig.TrustedParents.Any(tp => tp.Equals(parentName, StringComparison.OrdinalIgnoreCase)))
+                                {
+                                    isParentApproved = true;
+                                    _logger.LogInformation($"Auto-bypass granted to {procName} because parent {parentName} is in TrustedParents.");
+                                }
 							}
 						}
 					}
@@ -395,11 +436,49 @@ namespace SecureAppLocker.Service
 					}
 				}
 
+                string cmdLine = string.Empty;
+                if (appKey == "cmd" || appKey == "powershell" || appKey == "pwsh" || appKey == "windowsterminal" || appKey == "wt")
+                {
+                    try
+                    {
+                        using (var searcher = new System.Management.ManagementObjectSearcher($"SELECT CommandLine FROM Win32_Process WHERE ProcessId = {p.Id}"))
+                        using (var objects = searcher.Get())
+                        {
+                            var mo = objects.Cast<System.Management.ManagementBaseObject>().FirstOrDefault();
+                            if (mo != null && mo["CommandLine"] != null)
+                            {
+                                cmdLine = mo["CommandLine"]?.ToString() ?? string.Empty;
+                            }
+                        }
+
+                        if (_appConfig.TrustedCommands.Any(tc => 
+                            (string.IsNullOrWhiteSpace(tc.ParentProcess) || tc.ParentProcess.Equals(parentName, StringComparison.OrdinalIgnoreCase)) &&
+                            !string.IsNullOrWhiteSpace(tc.CommandSnippet) && 
+                            cmdLine.Contains(tc.CommandSnippet, StringComparison.OrdinalIgnoreCase)))
+                        {
+                            _logger.LogInformation($"Auto-bypass granted to {procName} due to trusted command line rule.");
+                            _approvedPids.TryAdd(p.Id, appKey);
+                            return;
+                        }
+                    }
+                    catch { }
+                }
+
 				if (isGlobalUnlocked || isAppUnlocked || isActiveAppImmunity || isParentApproved)
 				{
 					_approvedPids.TryAdd(p.Id, appKey);
 					return;
 				}
+
+                bool isGhostProcess = false;
+                if ((appKey == "cmd" || appKey == "powershell" || appKey == "pwsh") && !string.IsNullOrWhiteSpace(cmdLine))
+                {
+                    string cmdLower = cmdLine.ToLowerInvariant();
+                    if (cmdLower.Contains(" /c ") || cmdLower.Contains(" -c ") || cmdLower.Contains(" -file ") || cmdLower.Contains(" -executionpolicy ") || cmdLower.Contains(" --version ") || cmdLower.Contains("chrome-extension://"))
+                    {
+                        isGhostProcess = true;
+                    }
+                }
 
 				lock (_promptLock)
 				{
@@ -425,9 +504,13 @@ namespace SecureAppLocker.Service
 						}
 					}
 
-					if (blockPrompt)
+					if (blockPrompt || isGhostProcess)
 					{
 						p.Kill();
+                        if (isGhostProcess)
+                        {
+                            LogAudit(appKey, parentName, cmdLine ?? string.Empty);
+                        }
 						return;
 					}
 				}

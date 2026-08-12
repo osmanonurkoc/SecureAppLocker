@@ -5,6 +5,8 @@ using System.Text.RegularExpressions;
 using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
+using Microsoft.UI.Text;
 using Microsoft.UI.Windowing;
 using Windows.Graphics;
 using WinRT.Interop;
@@ -19,6 +21,9 @@ namespace SecureAppLocker.Manager
         private LockerConfig _config = new LockerConfig();
         public ObservableCollection<AppLockRule> AppsList { get; set; } = new ObservableCollection<AppLockRule>();
         public ObservableCollection<AppLockRule> SystemAppsList { get; set; } = new ObservableCollection<AppLockRule>();
+        public ObservableCollection<AuditLogEntry> AuditLogs { get; set; } = new ObservableCollection<AuditLogEntry>();
+        public ObservableCollection<string> TrustedParentsList { get; set; } = new ObservableCollection<string>();
+        public ObservableCollection<TrustedCommandRule> TrustedCommandsList { get; set; } = new ObservableCollection<TrustedCommandRule>();
 
         private readonly AppLockRule[] _systemTools = new AppLockRule[]
         {
@@ -192,6 +197,8 @@ namespace SecureAppLocker.Manager
                     tempConfig.IsActive = _config.IsActive;
                     tempConfig.EnableLogging = _config.EnableLogging;
                     tempConfig.ProtectedApps = _config.ProtectedApps.ToList();
+                    tempConfig.TrustedParents = _config.TrustedParents.ToList();
+                    tempConfig.TrustedCommands = _config.TrustedCommands.ToList();
 
                     tempConfig.MasterPasswordHash = HashDPAPIPassword(newPasswordBox.Password);
 
@@ -266,6 +273,13 @@ namespace SecureAppLocker.Manager
                     AppsList.Add(app);
             }
 
+            TrustedParentsList.Clear();
+            foreach (var p in _config.TrustedParents) TrustedParentsList.Add(p);
+
+            TrustedCommandsList.Clear();
+            // GÜNCEL: TrustedCommands kullanılıyor
+            foreach (var c in _config.TrustedCommands) TrustedCommandsList.Add(c);
+
             if (HardeningSwitch != null)
             {
                 bool allLocked = _systemTools.All(tool =>
@@ -300,6 +314,193 @@ namespace SecureAppLocker.Manager
             }
         }
 
+        private void LoadAuditLogs()
+        {
+            AuditLogs.Clear();
+            try
+            {
+                string programData = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
+                string auditFile = System.IO.Path.Combine(programData, "SecureAppLocker", "AuditLog.json");
+                if (System.IO.File.Exists(auditFile))
+                {
+                    string json = System.IO.File.ReadAllText(auditFile);
+                    var logs = System.Text.Json.JsonSerializer.Deserialize<System.Collections.Generic.List<AuditLogEntry>>(json, ConfigManager.JsonOptions);
+                    if (logs != null)
+                    {
+                        // GÜNCEL: Modeli kullanarak komutları filtreler
+                        var filteredLogs = logs.Where(l => 
+                            !_config.TrustedParents.Any(tp => tp.Equals(l.ParentProcess, StringComparison.OrdinalIgnoreCase)) &&
+                            !_config.TrustedCommands.Any(tc => 
+                                (string.IsNullOrWhiteSpace(tc.ParentProcess) || tc.ParentProcess.Equals(l.ParentProcess, StringComparison.OrdinalIgnoreCase)) &&
+                                (!string.IsNullOrWhiteSpace(tc.CommandSnippet) && l.CommandLine.Contains(tc.CommandSnippet, StringComparison.OrdinalIgnoreCase)))
+                        ).ToList();
+
+                        var uniqueLogs = filteredLogs
+                            .GroupBy(l => new { l.AppKey, l.ParentProcess, l.CommandLine })
+                            .Select(g => g.OrderByDescending(x => x.Timestamp).First())
+                            .OrderByDescending(l => l.Timestamp)
+                            .ToList();
+
+                        foreach (var log in uniqueLogs)
+                        {
+                            AuditLogs.Add(log);
+                        }
+                        
+                        var listToSave = AuditLogs.ToList();
+                        System.IO.File.WriteAllText(auditFile, System.Text.Json.JsonSerializer.Serialize(listToSave, ConfigManager.JsonOptions));
+                    }
+                }
+            }
+            catch { }
+        }
+
+        private void SaveAuditLogs()
+        {
+            try
+            {
+                string programData = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
+                string auditFile = System.IO.Path.Combine(programData, "SecureAppLocker", "AuditLog.json");
+                var listToSave = AuditLogs.ToList();
+                System.IO.File.WriteAllText(auditFile, System.Text.Json.JsonSerializer.Serialize(listToSave, ConfigManager.JsonOptions));
+            }
+            catch { }
+        }
+
+        private async void TrustParent_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is string parentProcess)
+            {
+                if (!string.IsNullOrWhiteSpace(parentProcess) && !_config.TrustedParents.Contains(parentProcess, StringComparer.OrdinalIgnoreCase))
+                {
+                    _config.TrustedParents.Add(parentProcess);
+                    TrustedParentsList.Add(parentProcess);
+
+                    var toRemove = AuditLogs.Where(l => l.ParentProcess.Equals(parentProcess, StringComparison.OrdinalIgnoreCase)).ToList();
+                    foreach (var item in toRemove)
+                    {
+                        AuditLogs.Remove(item);
+                    }
+                    SaveAuditLogs();
+
+                    await SaveConfigAndNotifyAsync($"'{parentProcess}' added to trusted parents.");
+                }
+                else if (_config.TrustedParents.Contains(parentProcess, StringComparer.OrdinalIgnoreCase))
+                {
+                    ShowInfo($"'{parentProcess}' is already trusted.");
+                }
+            }
+        }
+
+        private async void UntrustParent_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is string parentProcess)
+            {
+                var item = _config.TrustedParents.FirstOrDefault(x => x.Equals(parentProcess, StringComparison.OrdinalIgnoreCase));
+                if (item != null)
+                {
+                    _config.TrustedParents.Remove(item);
+                }
+                
+                var uiItem = TrustedParentsList.FirstOrDefault(x => x.Equals(parentProcess, StringComparison.OrdinalIgnoreCase));
+                if (uiItem != null)
+                {
+                    TrustedParentsList.Remove(uiItem);
+                }
+
+                await SaveConfigAndNotifyAsync($"'{parentProcess}' removed from trusted parents.");
+            }
+        }
+
+        private async void TrustCommand_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is AuditLogEntry logEntry)
+            {
+                var textBox = new TextBox 
+                { 
+                    Text = logEntry.CommandLine, 
+                    TextWrapping = TextWrapping.Wrap, 
+                    AcceptsReturn = true, 
+                    Height = 100 
+                };
+                
+                var stackPanel = new StackPanel { Spacing = 8 };
+                stackPanel.Children.Add(new TextBlock { Text = $"Parent Process: {logEntry.ParentProcess}", FontWeight = FontWeights.SemiBold });
+                stackPanel.Children.Add(new TextBlock 
+                { 
+                    Text = "Dynamic parameters like random session IDs or pipe names change on every launch. Please trim the command snippet below to a static, unique keyword (e.g. 'xdm-app-host.exe') so it can match future executions.", 
+                    TextWrapping = TextWrapping.Wrap,
+                    Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Gray),
+                    FontSize = 12
+                });
+                stackPanel.Children.Add(textBox);
+
+                var dialog = new ContentDialog
+                {
+                    Title = "Trust Command Snippet",
+                    Content = stackPanel,
+                    PrimaryButtonText = "Trust Snippet",
+                    CloseButtonText = "Cancel",
+                    DefaultButton = ContentDialogButton.Primary,
+                    XamlRoot = this.Content.XamlRoot
+                };
+
+                var result = await dialog.ShowAsync();
+                if (result == ContentDialogResult.Primary)
+                {
+                    string snippet = textBox.Text.Trim();
+                    if (!string.IsNullOrWhiteSpace(snippet))
+                    {
+                        var rule = new TrustedCommandRule { ParentProcess = logEntry.ParentProcess, CommandSnippet = snippet };
+                        
+                        if (!_config.TrustedCommands.Any(r => r.ParentProcess == rule.ParentProcess && r.CommandSnippet == rule.CommandSnippet))
+                        {
+                            _config.TrustedCommands.Add(rule);
+                            TrustedCommandsList.Add(rule);
+                            
+                            var toRemove = AuditLogs.Where(l => l.ParentProcess == rule.ParentProcess && l.CommandLine.Contains(rule.CommandSnippet, StringComparison.OrdinalIgnoreCase)).ToList();
+                            foreach (var item in toRemove)
+                            {
+                                AuditLogs.Remove(item);
+                            }
+                            SaveAuditLogs();
+
+                            await SaveConfigAndNotifyAsync("Command rule added to trusted list.");
+                        }
+                        else
+                        {
+                            ShowInfo("This command rule is already trusted.");
+                        }
+                    }
+                }
+            }
+        }
+
+        private async void UntrustCommand_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is TrustedCommandRule rule)
+            {
+                var item = _config.TrustedCommands.FirstOrDefault(x => x.ParentProcess == rule.ParentProcess && x.CommandSnippet == rule.CommandSnippet);
+                if (item != null)
+                {
+                    _config.TrustedCommands.Remove(item);
+                }
+                
+                var uiItem = TrustedCommandsList.FirstOrDefault(x => x.ParentProcess == rule.ParentProcess && x.CommandSnippet == rule.CommandSnippet);
+                if (uiItem != null)
+                {
+                    TrustedCommandsList.Remove(uiItem);
+                }
+
+                await SaveConfigAndNotifyAsync("Command rule removed from trusted list.");
+            }
+        }
+        
+        private void RefreshAuditLogs_Click(object sender, RoutedEventArgs e)
+        {
+            LoadAuditLogs();
+            ShowInfo("Audit logs refreshed.");
+        }
+
         private void SegmentedToggle_Click(object sender, RoutedEventArgs e)
         {
             if (sender is Microsoft.UI.Xaml.Controls.Primitives.ToggleButton clickedToggle)
@@ -307,10 +508,17 @@ namespace SecureAppLocker.Manager
                 NavApps.IsChecked = clickedToggle == NavApps;
                 NavSecurity.IsChecked = clickedToggle == NavSecurity;
                 NavPassword.IsChecked = clickedToggle == NavPassword;
+                
+                var navAudit = MainRootGrid.FindName("NavAudit") as ToggleButton;
+                if (navAudit != null) navAudit.IsChecked = clickedToggle == navAudit;
 
                 AppsPage.Visibility = Visibility.Collapsed;
                 SecurityPage.Visibility = Visibility.Collapsed;
                 PasswordPage.Visibility = Visibility.Collapsed;
+                
+                var auditPage = MainRootGrid.FindName("AuditPage") as StackPanel;
+                if (auditPage != null) auditPage.Visibility = Visibility.Collapsed;
+                
                 StatusInfoBar.IsOpen = false;
 
                 switch (clickedToggle.Tag?.ToString())
@@ -318,6 +526,10 @@ namespace SecureAppLocker.Manager
                     case "Apps": AppsPage.Visibility = Visibility.Visible; break;
                     case "Security": SecurityPage.Visibility = Visibility.Visible; break;
                     case "Password": PasswordPage.Visibility = Visibility.Visible; break;
+                    case "Audit": 
+                        LoadAuditLogs();
+                        if (auditPage != null) auditPage.Visibility = Visibility.Visible;
+                        break;
                 }
             }
         }
@@ -541,6 +753,8 @@ namespace SecureAppLocker.Manager
             tempConfig.IsActive = _config.IsActive;
             tempConfig.EnableLogging = _config.EnableLogging;
             tempConfig.ProtectedApps = _config.ProtectedApps.ToList();
+            tempConfig.TrustedParents = _config.TrustedParents.ToList();
+            tempConfig.TrustedCommands = _config.TrustedCommands.ToList();
 
             tempConfig.MasterPasswordHash = HashDPAPIPassword(newPass);
 
@@ -682,6 +896,8 @@ namespace SecureAppLocker.Manager
                 freshConfig.IsActive = _config.IsActive;
                 freshConfig.EnableLogging = _config.EnableLogging;
                 freshConfig.ProtectedApps = _config.ProtectedApps.ToList();
+                freshConfig.TrustedParents = _config.TrustedParents.ToList();
+                freshConfig.TrustedCommands = _config.TrustedCommands.ToList();
 
                 bool success = await ConfigManager.SaveConfigViaIPCAsync(freshConfig);
                 if (success)
