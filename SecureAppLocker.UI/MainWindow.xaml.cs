@@ -15,6 +15,9 @@ namespace SecureAppLocker.UI
 	{
 		private string _appKey = string.Empty;
 		private string _targetPath = string.Empty;
+		
+		private bool _isTrustedRun = false;
+		private bool _isElevated = false;
 
 		public MainWindow()
 		{
@@ -29,13 +32,42 @@ namespace SecureAppLocker.UI
 			this.SystemBackdrop = new Microsoft.UI.Xaml.Media.MicaBackdrop();
 			CustomizeWindowStructure();
 			this.Closed += MainWindow_Closed;
+
+			ParseCommandLineArguments();
+		}
+
+		private void ParseCommandLineArguments()
+		{
+			string[] args = Environment.GetCommandLineArgs();
+			for (int i = 0; i < args.Length; i++)
+			{
+				if (args[i].Equals("--elevated", StringComparison.OrdinalIgnoreCase))
+				{
+					_isElevated = true;
+				}
+				else if (args[i].Equals("--trusted-run", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+				{
+					_isTrustedRun = true;
+					string target = args[i + 1];
+					UpdatePrompt("TRUSTED_RUN_MODE", Path.GetFileName(target), target);
+				}
+			}
 		}
 
 		public void UpdatePrompt(string appKey, string displayName, string targetPath)
 		{
 			_appKey = appKey;
 			_targetPath = targetPath;
-			AppPathText.Text = displayName;
+			
+			if (_isTrustedRun && _isElevated)
+			{
+				AppPathText.Text = $"🛡️ [Elevated] {displayName}";
+			}
+			else
+			{
+				AppPathText.Text = displayName;
+			}
+			
 			PasswordInput.Password = string.Empty;
 			PasswordInput.Header = string.Empty;
 
@@ -114,6 +146,7 @@ namespace SecureAppLocker.UI
 			args.Handled = true;
 			SendIpcCommand($"CANCEL|{_appKey}");
 			this.AppWindow.Hide();
+			Environment.Exit(0);
 		}
 
 		private async void SubmitButton_Click(object sender, RoutedEventArgs e)
@@ -133,6 +166,7 @@ namespace SecureAppLocker.UI
 		{
 			SendIpcCommand($"CANCEL|{_appKey}");
 			this.AppWindow.Hide();
+			Environment.Exit(0);
 		}
 
 		private async Task VerifyPasswordAsync()
@@ -153,7 +187,15 @@ namespace SecureAppLocker.UI
 				using var writer = new StreamWriter(client) { AutoFlush = true };
 				using var reader = new StreamReader(client);
 
-				await writer.WriteLineAsync($"UNLOCK|{_appKey}|{enteredPassword}");
+				if (_isTrustedRun)
+				{
+					await writer.WriteLineAsync($"TRUSTED_RUN|{_targetPath}|{enteredPassword}");
+				}
+				else
+				{
+					await writer.WriteLineAsync($"UNLOCK|{_appKey}|{enteredPassword}");
+				}
+				
 				response = await reader.ReadLineAsync();
 			}
 			catch (Exception)
@@ -173,15 +215,24 @@ namespace SecureAppLocker.UI
 				{
 					try
 					{
-						System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+						var psi = new System.Diagnostics.ProcessStartInfo
 						{
 							FileName = _targetPath,
 							UseShellExecute = true,
 							WorkingDirectory = Path.GetDirectoryName(_targetPath) ?? string.Empty
-						});
+						};
+
+						if (_isElevated)
+						{
+							psi.Verb = "runas";
+						}
+
+						System.Diagnostics.Process.Start(psi);
 					}
 					catch { }
 				}
+				
+				Environment.Exit(0);
 			}
 			else if (response == "INVALID" || response == "FAIL")
 			{

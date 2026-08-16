@@ -57,6 +57,9 @@ namespace SecureAppLocker.Service
 		private readonly ConcurrentDictionary<int, byte> _knownPids;
 		private readonly ConcurrentDictionary<int, string> _approvedPids;
 		private readonly ConcurrentDictionary<int, bool> _safePids;
+		
+		private readonly ConcurrentDictionary<string, DateTime> _pendingTrustedRuns;
+		
 		private readonly object _promptLock = new object();
 
 		private LockerConfig _appConfig = new LockerConfig();
@@ -70,6 +73,7 @@ namespace SecureAppLocker.Service
 			_knownPids = new ConcurrentDictionary<int, byte>();
 			_approvedPids = new ConcurrentDictionary<int, string>();
 			_safePids = new ConcurrentDictionary<int, bool>();
+			_pendingTrustedRuns = new ConcurrentDictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase);
 		}
 
 		private void LoadDynamicConfiguration()
@@ -239,6 +243,27 @@ namespace SecureAppLocker.Service
 
 						if (_safePids.ContainsKey(p.Id) || _knownPids.ContainsKey(p.Id))
 							continue;
+
+						string procPath = string.Empty;
+						try { procPath = p.MainModule?.FileName ?? string.Empty; } catch { }
+
+						if (!string.IsNullOrEmpty(procPath) && _pendingTrustedRuns.ContainsKey(procPath))
+						{
+							if (_pendingTrustedRuns.TryGetValue(procPath, out DateTime exp) && DateTime.Now < exp)
+							{
+								_approvedPids.TryAdd(p.Id, "TRUSTED_RUN_ROOT");
+								_knownPids.TryAdd(p.Id, 1);
+								
+								_pendingTrustedRuns.TryRemove(procPath, out _);
+								
+								_logger.LogInformation($"Trusted Run started and granted full parent immunity: {procPath} (PID: {p.Id})");
+								continue;
+							}
+							else
+							{
+								_pendingTrustedRuns.TryRemove(procPath, out _);
+							}
+						}
 
 						bool isTarget = false;
 						string matchedAppKey = string.Empty;
@@ -752,6 +777,36 @@ namespace SecureAppLocker.Service
 												}
 												_logger.LogWarning($"Invalid password attempt for {appKey}.");
 												if (currentConfig.EnableLogging) LogManager.WriteLog("INVALID_PASSWORD", appKey, "Wrong master password entered.");
+											}
+										}
+									}
+									else if (command == "TRUSTED_RUN")
+									{
+										var parts = request.Split('|');
+										if (parts.Length >= 3)
+										{
+											string targetPath = parts[1].Trim();
+											string password = parts[2];
+											var currentConfig = _appConfig;
+
+											bool isValid = false;
+											try
+											{
+												byte[] encryptedBytes = Convert.FromBase64String(currentConfig.MasterPasswordHash);
+												string decryptedPassword = CryptoHelper.UnprotectLocalData(encryptedBytes);
+												isValid = (password == decryptedPassword);
+											}
+											catch { isValid = false; }
+
+											if (isValid)
+											{
+												_pendingTrustedRuns[targetPath] = DateTime.Now.AddSeconds(15);
+												if (pipeServer.IsConnected) await writer.WriteLineAsync("SUCCESS");
+												_logger.LogInformation($"Pre-auth granted for Trusted Run. Waiting for: {targetPath}");
+											}
+											else
+											{
+												if (pipeServer.IsConnected) await writer.WriteLineAsync("INVALID");
 											}
 										}
 									}

@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Pipes;
+using System.Linq;
 using System.Security.AccessControl;
 using System.Security.Principal;
 using System.Threading.Tasks;
@@ -28,10 +29,20 @@ namespace SecureAppLocker.UI
 			// Initialize the main window to keep the application alive.
 			_mainWindow = new MainWindow();
 			_mainWindow.Activate();
-			_mainWindow.AppWindow.Hide();
 
 			// Run persistent background listener in the user session
-			Task.Run(() => StartPersistentListenerAsync(dispatcherQueue));
+			string[] cmdArgs = Environment.GetCommandLineArgs();
+			bool isManualRun = cmdArgs.Any(a => a.Equals("--trusted-run", StringComparison.OrdinalIgnoreCase));
+
+			if (!isManualRun)
+			{
+				_mainWindow.AppWindow.Hide();
+				Task.Run(() => StartPersistentListenerAsync(dispatcherQueue));
+			}
+			else
+			{
+				_mainWindow.AppWindow.Show();
+			}
 		}
 
 		private async Task StartPersistentListenerAsync(Microsoft.UI.Dispatching.DispatcherQueue dispatcherQueue)
@@ -100,6 +111,10 @@ namespace SecureAppLocker.UI
 							});
 						}
 					}
+				}
+				catch (UnauthorizedAccessException)
+				{
+					return;
 				}
 				catch (Exception ex)
 				{
