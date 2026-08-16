@@ -316,17 +316,21 @@ namespace SecureAppLocker.Manager
         private bool IsMatchWithWildcard(string pattern, string target)
         {
             if (string.IsNullOrWhiteSpace(pattern) || string.IsNullOrWhiteSpace(target)) return false;
-            
-            if (pattern.EndsWith("*") && pattern.StartsWith("*") && pattern.Length > 2)
-                return target.Contains(pattern.Trim('*'), StringComparison.OrdinalIgnoreCase);
-            
-            if (pattern.EndsWith("*"))
-                return target.StartsWith(pattern.TrimEnd('*'), StringComparison.OrdinalIgnoreCase);
-            
-            if (pattern.StartsWith("*"))
-                return target.EndsWith(pattern.TrimStart('*'), StringComparison.OrdinalIgnoreCase);
-            
-            return target.Equals(pattern, StringComparison.OrdinalIgnoreCase);
+
+            if (!pattern.Contains('*'))
+            {
+                return target.Equals(pattern, StringComparison.OrdinalIgnoreCase);
+            }
+
+            try
+            {
+                string regexPattern = "^" + Regex.Escape(pattern).Replace("\\*", ".*") + "$";
+                return Regex.IsMatch(target, regexPattern, RegexOptions.IgnoreCase);
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         private void LoadAuditLogs()
@@ -384,23 +388,55 @@ namespace SecureAppLocker.Manager
         {
             if (sender is Button btn && btn.Tag is string parentProcess)
             {
-                if (!string.IsNullOrWhiteSpace(parentProcess) && !_config.TrustedParents.Contains(parentProcess, StringComparer.OrdinalIgnoreCase))
-                {
-                    _config.TrustedParents.Add(parentProcess);
-                    TrustedParentsList.Add(parentProcess);
+                var textBox = new TextBox 
+                { 
+                    Text = parentProcess, 
+                    Margin = new Thickness(0, 0, 0, 8) 
+                };
 
-                    var toRemove = AuditLogs.Where(l => IsMatchWithWildcard(parentProcess, l.ParentProcess)).ToList();
-                    foreach (var item in toRemove)
+                var stackPanel = new StackPanel { Spacing = 8 };
+                stackPanel.Children.Add(new TextBlock { Text = "Parent Process Name (Supports * wildcard):", FontWeight = FontWeights.SemiBold });
+                stackPanel.Children.Add(new TextBlock 
+                { 
+                    Text = "You can use the '*' wildcard to trust changing version numbers (e.g., 'VSCodeUserSetup-*.tmp').", 
+                    TextWrapping = TextWrapping.Wrap,
+                    Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Gray),
+                    FontSize = 12
+                });
+                stackPanel.Children.Add(textBox);
+
+                var dialog = new ContentDialog
+                {
+                    Title = "Trust Parent Process",
+                    Content = stackPanel,
+                    PrimaryButtonText = "Trust Parent",
+                    CloseButtonText = "Cancel",
+                    DefaultButton = ContentDialogButton.Primary,
+                    XamlRoot = this.Content.XamlRoot
+                };
+
+                var result = await dialog.ShowAsync();
+                if (result == ContentDialogResult.Primary)
+                {
+                    string editedParent = textBox.Text.Trim();
+                    if (!string.IsNullOrWhiteSpace(editedParent) && !_config.TrustedParents.Contains(editedParent, StringComparer.OrdinalIgnoreCase))
                     {
-                        AuditLogs.Remove(item);
-                    }
-                    SaveAuditLogs();
+                        _config.TrustedParents.Add(editedParent);
+                        TrustedParentsList.Add(editedParent);
 
-                    await SaveConfigAndNotifyAsync($"'{parentProcess}' added to trusted parents.");
-                }
-                else if (_config.TrustedParents.Contains(parentProcess, StringComparer.OrdinalIgnoreCase))
-                {
-                    ShowInfo($"'{parentProcess}' is already trusted.");
+                        var toRemove = AuditLogs.Where(l => IsMatchWithWildcard(editedParent, l.ParentProcess)).ToList();
+                        foreach (var item in toRemove)
+                        {
+                            AuditLogs.Remove(item);
+                        }
+                        SaveAuditLogs();
+
+                        await SaveConfigAndNotifyAsync($"'{editedParent}' added to trusted parents.");
+                    }
+                    else if (_config.TrustedParents.Contains(editedParent, StringComparer.OrdinalIgnoreCase))
+                    {
+                        ShowInfo($"'{editedParent}' is already trusted.");
+                    }
                 }
             }
         }

@@ -9,6 +9,7 @@ using System.Security.AccessControl;
 using System.Security.Principal;
 using System.Text.Json;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System.Linq;
@@ -342,17 +343,21 @@ namespace SecureAppLocker.Service
         private bool IsMatchWithWildcard(string pattern, string target)
         {
             if (string.IsNullOrWhiteSpace(pattern) || string.IsNullOrWhiteSpace(target)) return false;
-            
-            if (pattern.EndsWith("*") && pattern.StartsWith("*") && pattern.Length > 2)
-                return target.Contains(pattern.Trim('*'), StringComparison.OrdinalIgnoreCase);
-            
-            if (pattern.EndsWith("*"))
-                return target.StartsWith(pattern.TrimEnd('*'), StringComparison.OrdinalIgnoreCase);
-            
-            if (pattern.StartsWith("*"))
-                return target.EndsWith(pattern.TrimStart('*'), StringComparison.OrdinalIgnoreCase);
-            
-            return target.Equals(pattern, StringComparison.OrdinalIgnoreCase);
+
+            if (!pattern.Contains('*'))
+            {
+                return target.Equals(pattern, StringComparison.OrdinalIgnoreCase);
+            }
+
+            try
+            {
+                string regexPattern = "^" + Regex.Escape(pattern).Replace("\\*", ".*") + "$";
+                return Regex.IsMatch(target, regexPattern, RegexOptions.IgnoreCase);
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         private void LogAudit(string appKey, string parentName, string cmdLine)
