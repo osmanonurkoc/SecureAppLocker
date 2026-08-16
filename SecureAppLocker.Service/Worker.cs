@@ -252,8 +252,7 @@ namespace SecureAppLocker.Service
 							if (_pendingTrustedRuns.TryGetValue(procPath, out DateTime exp) && DateTime.Now < exp)
 							{
 								_approvedPids.TryAdd(p.Id, "TRUSTED_RUN_ROOT");
-								_knownPids.TryAdd(p.Id, 1);
-								
+								_safePids.TryAdd(p.Id, true);
 								_pendingTrustedRuns.TryRemove(procPath, out _);
 								
 								_logger.LogInformation($"Trusted Run started and granted full parent immunity: {procPath} (PID: {p.Id})");
@@ -264,6 +263,21 @@ namespace SecureAppLocker.Service
 								_pendingTrustedRuns.TryRemove(procPath, out _);
 							}
 						}
+
+						bool inheritsImmunity = false;
+						int parentId = GetParentProcessId(p);
+						
+						if (parentId > 0 && _approvedPids.TryGetValue(parentId, out string parentAppKey))
+						{
+							if (parentAppKey == "TRUSTED_RUN_ROOT" || parentAppKey == "TRUSTED_CHILD")
+							{
+								_approvedPids.TryAdd(p.Id, "TRUSTED_CHILD");
+								_safePids.TryAdd(p.Id, true);
+								inheritsImmunity = true;
+							}
+						}
+
+						if (inheritsImmunity) continue;
 
 						bool isTarget = false;
 						string matchedAppKey = string.Empty;
@@ -340,6 +354,8 @@ namespace SecureAppLocker.Service
 					if (!currentTickPids.Contains(pid))
 					{
 						_safePids.TryRemove(pid, out _);
+						
+						_approvedPids.TryRemove(pid, out _); 
 					}
 				}
 
