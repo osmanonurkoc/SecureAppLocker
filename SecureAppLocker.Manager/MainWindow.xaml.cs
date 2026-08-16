@@ -277,7 +277,6 @@ namespace SecureAppLocker.Manager
             foreach (var p in _config.TrustedParents) TrustedParentsList.Add(p);
 
             TrustedCommandsList.Clear();
-            // GÜNCEL: TrustedCommands kullanılıyor
             foreach (var c in _config.TrustedCommands) TrustedCommandsList.Add(c);
 
             if (HardeningSwitch != null)
@@ -314,6 +313,22 @@ namespace SecureAppLocker.Manager
             }
         }
 
+        private bool IsMatchWithWildcard(string pattern, string target)
+        {
+            if (string.IsNullOrWhiteSpace(pattern) || string.IsNullOrWhiteSpace(target)) return false;
+            
+            if (pattern.EndsWith("*") && pattern.StartsWith("*") && pattern.Length > 2)
+                return target.Contains(pattern.Trim('*'), StringComparison.OrdinalIgnoreCase);
+            
+            if (pattern.EndsWith("*"))
+                return target.StartsWith(pattern.TrimEnd('*'), StringComparison.OrdinalIgnoreCase);
+            
+            if (pattern.StartsWith("*"))
+                return target.EndsWith(pattern.TrimStart('*'), StringComparison.OrdinalIgnoreCase);
+            
+            return target.Equals(pattern, StringComparison.OrdinalIgnoreCase);
+        }
+
         private void LoadAuditLogs()
         {
             AuditLogs.Clear();
@@ -327,11 +342,10 @@ namespace SecureAppLocker.Manager
                     var logs = System.Text.Json.JsonSerializer.Deserialize<System.Collections.Generic.List<AuditLogEntry>>(json, ConfigManager.JsonOptions);
                     if (logs != null)
                     {
-                        // GÜNCEL: Modeli kullanarak komutları filtreler
                         var filteredLogs = logs.Where(l => 
-                            !_config.TrustedParents.Any(tp => tp.Equals(l.ParentProcess, StringComparison.OrdinalIgnoreCase)) &&
+                            !_config.TrustedParents.Any(tp => IsMatchWithWildcard(tp, l.ParentProcess)) &&
                             !_config.TrustedCommands.Any(tc => 
-                                (string.IsNullOrWhiteSpace(tc.ParentProcess) || tc.ParentProcess.Equals(l.ParentProcess, StringComparison.OrdinalIgnoreCase)) &&
+                                (string.IsNullOrWhiteSpace(tc.ParentProcess) || IsMatchWithWildcard(tc.ParentProcess, l.ParentProcess)) &&
                                 (!string.IsNullOrWhiteSpace(tc.CommandSnippet) && l.CommandLine.Contains(tc.CommandSnippet, StringComparison.OrdinalIgnoreCase)))
                         ).ToList();
 
@@ -375,7 +389,7 @@ namespace SecureAppLocker.Manager
                     _config.TrustedParents.Add(parentProcess);
                     TrustedParentsList.Add(parentProcess);
 
-                    var toRemove = AuditLogs.Where(l => l.ParentProcess.Equals(parentProcess, StringComparison.OrdinalIgnoreCase)).ToList();
+                    var toRemove = AuditLogs.Where(l => IsMatchWithWildcard(parentProcess, l.ParentProcess)).ToList();
                     foreach (var item in toRemove)
                     {
                         AuditLogs.Remove(item);
@@ -423,8 +437,17 @@ namespace SecureAppLocker.Manager
                     Height = 100 
                 };
                 
+                var parentTextBox = new TextBox
+                {
+                    Text = logEntry.ParentProcess,
+                    Margin = new Thickness(0, 0, 0, 8)
+                };
+
                 var stackPanel = new StackPanel { Spacing = 8 };
-                stackPanel.Children.Add(new TextBlock { Text = $"Parent Process: {logEntry.ParentProcess}", FontWeight = FontWeights.SemiBold });
+                stackPanel.Children.Add(new TextBlock { Text = "Parent Process (Supports * wildcard):", FontWeight = FontWeights.SemiBold });
+                stackPanel.Children.Add(parentTextBox);
+                
+                stackPanel.Children.Add(new TextBlock { Text = "Command Snippet:", FontWeight = FontWeights.SemiBold });
                 stackPanel.Children.Add(new TextBlock 
                 { 
                     Text = "Dynamic parameters like random session IDs or pipe names change on every launch. Please trim the command snippet below to a static, unique keyword (e.g. 'xdm-app-host.exe') so it can match future executions.", 
@@ -448,16 +471,18 @@ namespace SecureAppLocker.Manager
                 if (result == ContentDialogResult.Primary)
                 {
                     string snippet = textBox.Text.Trim();
+                    string parent = parentTextBox.Text.Trim();
+                    
                     if (!string.IsNullOrWhiteSpace(snippet))
                     {
-                        var rule = new TrustedCommandRule { ParentProcess = logEntry.ParentProcess, CommandSnippet = snippet };
+                        var rule = new TrustedCommandRule { ParentProcess = parent, CommandSnippet = snippet };
                         
                         if (!_config.TrustedCommands.Any(r => r.ParentProcess == rule.ParentProcess && r.CommandSnippet == rule.CommandSnippet))
                         {
                             _config.TrustedCommands.Add(rule);
                             TrustedCommandsList.Add(rule);
                             
-                            var toRemove = AuditLogs.Where(l => l.ParentProcess == rule.ParentProcess && l.CommandLine.Contains(rule.CommandSnippet, StringComparison.OrdinalIgnoreCase)).ToList();
+                            var toRemove = AuditLogs.Where(l => IsMatchWithWildcard(rule.ParentProcess, l.ParentProcess) && l.CommandLine.Contains(rule.CommandSnippet, StringComparison.OrdinalIgnoreCase)).ToList();
                             foreach (var item in toRemove)
                             {
                                 AuditLogs.Remove(item);
@@ -470,6 +495,77 @@ namespace SecureAppLocker.Manager
                         {
                             ShowInfo("This command rule is already trusted.");
                         }
+                    }
+                }
+            }
+        }
+
+        private async void EditCommand_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is TrustedCommandRule rule)
+            {
+                var textBox = new TextBox 
+                { 
+                    Text = rule.CommandSnippet, 
+                    TextWrapping = TextWrapping.Wrap, 
+                    AcceptsReturn = true, 
+                    Height = 100 
+                };
+                
+                var parentTextBox = new TextBox
+                {
+                    Text = rule.ParentProcess,
+                    Margin = new Thickness(0, 0, 0, 8)
+                };
+
+                var stackPanel = new StackPanel { Spacing = 8 };
+                stackPanel.Children.Add(new TextBlock { Text = "Parent Process (Supports * wildcard):", FontWeight = FontWeights.SemiBold });
+                stackPanel.Children.Add(parentTextBox);
+                
+                stackPanel.Children.Add(new TextBlock { Text = "Command Snippet:", FontWeight = FontWeights.SemiBold });
+                stackPanel.Children.Add(new TextBlock 
+                { 
+                    Text = "Edit the command snippet. Keep only the static, unique keywords to match future executions.", 
+                    TextWrapping = TextWrapping.Wrap,
+                    Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Gray),
+                    FontSize = 12
+                });
+                stackPanel.Children.Add(textBox);
+
+                var dialog = new ContentDialog
+                {
+                    Title = "Edit Trusted Rule",
+                    Content = stackPanel,
+                    PrimaryButtonText = "Save Changes",
+                    CloseButtonText = "Cancel",
+                    DefaultButton = ContentDialogButton.Primary,
+                    XamlRoot = this.Content.XamlRoot
+                };
+
+                var result = await dialog.ShowAsync();
+                if (result == ContentDialogResult.Primary)
+                {
+                    string newSnippet = textBox.Text.Trim();
+                    string newParent = parentTextBox.Text.Trim();
+                    
+                    if (!string.IsNullOrWhiteSpace(newSnippet))
+                    {
+                        var configItem = _config.TrustedCommands.FirstOrDefault(x => x.ParentProcess == rule.ParentProcess && x.CommandSnippet == rule.CommandSnippet);
+                        if (configItem != null)
+                        {
+                            configItem.ParentProcess = newParent;
+                            configItem.CommandSnippet = newSnippet;
+                        }
+
+                        var uiItem = TrustedCommandsList.FirstOrDefault(x => x.ParentProcess == rule.ParentProcess && x.CommandSnippet == rule.CommandSnippet);
+                        if (uiItem != null)
+                        {
+                            int index = TrustedCommandsList.IndexOf(uiItem);
+                            TrustedCommandsList[index] = new TrustedCommandRule { ParentProcess = newParent, CommandSnippet = newSnippet };
+                        }
+
+                        await SaveConfigAndNotifyAsync("Command rule updated successfully.");
+                        LoadAuditLogs();
                     }
                 }
             }

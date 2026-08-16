@@ -339,6 +339,22 @@ namespace SecureAppLocker.Service
 			return -1;
 		}
 
+        private bool IsMatchWithWildcard(string pattern, string target)
+        {
+            if (string.IsNullOrWhiteSpace(pattern) || string.IsNullOrWhiteSpace(target)) return false;
+            
+            if (pattern.EndsWith("*") && pattern.StartsWith("*") && pattern.Length > 2)
+                return target.Contains(pattern.Trim('*'), StringComparison.OrdinalIgnoreCase);
+            
+            if (pattern.EndsWith("*"))
+                return target.StartsWith(pattern.TrimEnd('*'), StringComparison.OrdinalIgnoreCase);
+            
+            if (pattern.StartsWith("*"))
+                return target.EndsWith(pattern.TrimStart('*'), StringComparison.OrdinalIgnoreCase);
+            
+            return target.Equals(pattern, StringComparison.OrdinalIgnoreCase);
+        }
+
         private void LogAudit(string appKey, string parentName, string cmdLine)
         {
             try
@@ -422,8 +438,7 @@ namespace SecureAppLocker.Service
 									isParentApproved = true;
 									_logger.LogInformation($"Auto-bypass granted to {procName} because it was spawned by OS service: {parentName}");
 								}
-                                else if (_appConfig.TrustedParents.Any(tp => tp.Equals(pNameLower, StringComparison.OrdinalIgnoreCase)) ||
-                                         _appConfig.TrustedParents.Any(tp => tp.Equals(parentName, StringComparison.OrdinalIgnoreCase)))
+                                else if (_appConfig.TrustedParents.Any(tp => IsMatchWithWildcard(tp, pNameLower) || IsMatchWithWildcard(tp, parentName)))
                                 {
                                     isParentApproved = true;
                                     _logger.LogInformation($"Auto-bypass granted to {procName} because parent {parentName} is in TrustedParents.");
@@ -452,7 +467,7 @@ namespace SecureAppLocker.Service
                         }
 
                         if (_appConfig.TrustedCommands.Any(tc => 
-                            (string.IsNullOrWhiteSpace(tc.ParentProcess) || tc.ParentProcess.Equals(parentName, StringComparison.OrdinalIgnoreCase)) &&
+                            (string.IsNullOrWhiteSpace(tc.ParentProcess) || IsMatchWithWildcard(tc.ParentProcess, parentName)) &&
                             !string.IsNullOrWhiteSpace(tc.CommandSnippet) && 
                             cmdLine.Contains(tc.CommandSnippet, StringComparison.OrdinalIgnoreCase)))
                         {
