@@ -479,7 +479,7 @@ namespace SecureAppLocker.Service
 								parentName = parentProcess.ProcessName;
                                 string pNameLower = parentName.ToLowerInvariant();
 
-								if (pNameLower == "svchost" || pNameLower == "services" || pNameLower == "taskhostw" || pNameLower == "sihost")
+								if (pNameLower == "svchost" || pNameLower == "services" || pNameLower == "taskhostw" || pNameLower == "sihost" || pNameLower == "net")
 								{
 									isParentApproved = true;
 									_logger.LogInformation($"Auto-bypass granted to {procName} because it was spawned by OS service: {parentName}");
