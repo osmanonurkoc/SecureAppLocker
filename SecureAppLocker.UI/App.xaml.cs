@@ -36,11 +36,15 @@ namespace SecureAppLocker.UI
 
 			if (!isManualRun)
 			{
+				// Mark as the persistent background listener
+				_mainWindow.IsPersistentInstance = true;
 				_mainWindow.AppWindow.Hide();
 				Task.Run(() => StartPersistentListenerAsync(dispatcherQueue));
 			}
 			else
 			{
+				// Mark as a single-use manual run instance
+				_mainWindow.IsPersistentInstance = false;
 				_mainWindow.AppWindow.Show();
 			}
 		}
@@ -101,6 +105,7 @@ namespace SecureAppLocker.UI
 								if (_mainWindow == null)
 								{
 									_mainWindow = new MainWindow();
+									_mainWindow.IsPersistentInstance = true;
 								}
 								
 								_mainWindow.UpdatePrompt(appKey, displayName, targetPath);

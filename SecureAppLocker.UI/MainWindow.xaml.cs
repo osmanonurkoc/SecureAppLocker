@@ -19,6 +19,8 @@ namespace SecureAppLocker.UI
 		private bool _isTrustedRun = false;
 		private bool _isElevated = false;
 
+		public bool IsPersistentInstance { get; set; } = false;
+
 		public MainWindow()
 		{
 			this.InitializeComponent();
@@ -141,12 +143,21 @@ namespace SecureAppLocker.UI
 			}
 		}
 
+		private void ExitOrHide()
+		{
+			this.AppWindow.Hide();
+			
+			if (!IsPersistentInstance)
+			{
+				Environment.Exit(0);
+			}
+		}
+
 		private void MainWindow_Closed(object sender, WindowEventArgs args)
 		{
 			args.Handled = true;
 			SendIpcCommand($"CANCEL|{_appKey}");
-			this.AppWindow.Hide();
-			Environment.Exit(0);
+			ExitOrHide();
 		}
 
 		private async void SubmitButton_Click(object sender, RoutedEventArgs e)
@@ -165,8 +176,7 @@ namespace SecureAppLocker.UI
 		private void CancelButton_Click(object sender, RoutedEventArgs e)
 		{
 			SendIpcCommand($"CANCEL|{_appKey}");
-			this.AppWindow.Hide();
-			Environment.Exit(0);
+			ExitOrHide();
 		}
 
 		private async Task VerifyPasswordAsync()
@@ -209,8 +219,6 @@ namespace SecureAppLocker.UI
 
 			if (response == "SUCCESS")
 			{
-				this.AppWindow.Hide();
-
 				if (!string.IsNullOrEmpty(_targetPath) && File.Exists(_targetPath))
 				{
 					try
@@ -232,7 +240,7 @@ namespace SecureAppLocker.UI
 					catch { }
 				}
 				
-				Environment.Exit(0);
+				ExitOrHide();
 			}
 			else if (response == "INVALID" || response == "FAIL")
 			{
