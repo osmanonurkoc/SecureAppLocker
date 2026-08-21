@@ -43,7 +43,8 @@ namespace SecureAppLocker.Manager
             new AppLockRule { Name = "net.exe", OriginalFileName = "net.exe", IsEnabled = true },
             new AppLockRule { Name = "wmic.exe", OriginalFileName = "wmic.exe", IsEnabled = true }, // Legacy Support
             new AppLockRule { Name = "msconfig.exe", OriginalFileName = "msconfig.exe", IsEnabled = true },
-            new AppLockRule { Name = "regedit.exe", OriginalFileName = "regedit.exe", IsEnabled = true }
+            new AppLockRule { Name = "regedit.exe", OriginalFileName = "regedit.exe", IsEnabled = true },
+            new AppLockRule { Name = "taskmgr.exe", OriginalFileName = "Taskmgr.exe", IsEnabled = true }
         };
 
         private const string PasswordRegex = @"^[A-Za-z0-9!@#$%^&*()_+\-=\[\]{}|;:,.<>?/_""]+$";
@@ -382,6 +383,24 @@ namespace SecureAppLocker.Manager
                 System.IO.File.WriteAllText(auditFile, System.Text.Json.JsonSerializer.Serialize(listToSave, ConfigManager.JsonOptions));
             }
             catch { }
+        }
+
+        // NEW: Handles the "Clear All" button click
+        private void ClearAuditLogs_Click(object sender, RoutedEventArgs e)
+        {
+            AuditLogs.Clear();
+            SaveAuditLogs();
+            ShowInfo("All audit logs cleared successfully.");
+        }
+
+        // NEW: Handles individual "Ignore" button clicks
+        private void IgnoreLog_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is AuditLogEntry logEntry)
+            {
+                AuditLogs.Remove(logEntry);
+                SaveAuditLogs();
+            }
         }
 
         private async void TrustParent_Click(object sender, RoutedEventArgs e)

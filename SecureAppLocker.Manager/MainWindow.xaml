@@ -195,7 +195,12 @@
 						<StackPanel Spacing="12" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" Padding="16" CornerRadius="8" BorderThickness="1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
 							<Grid>
 								<TextBlock Text="Blocked Ghost Processes" Style="{ThemeResource BodyStrongTextBlockStyle}" VerticalAlignment="Center" />
-								<Button Content="Refresh" Click="RefreshAuditLogs_Click" HorizontalAlignment="Right" />
+								
+								<!-- NEW: Added Clear All and Refresh buttons -->
+								<StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+									<Button Content="Clear All" Click="ClearAuditLogs_Click" />
+									<Button Content="Refresh" Click="RefreshAuditLogs_Click" Style="{ThemeResource AccentButtonStyle}" />
+								</StackPanel>
 							</Grid>
 							
 							<ListView ItemsSource="{x:Bind AuditLogs}" BorderThickness="1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" CornerRadius="8" MinHeight="150" MaxHeight="400" HorizontalAlignment="Stretch">
@@ -218,6 +223,8 @@
 											<StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
 												<Button Content="Trust Parent" Tag="{x:Bind ParentProcess}" Click="TrustParent_Click" FontSize="12" Padding="8,4" />
 												<Button Content="Trust Command" Tag="{x:Bind}" Click="TrustCommand_Click" FontSize="12" Padding="8,4" Style="{ThemeResource AccentButtonStyle}" />
+												<!-- NEW: Added individual Ignore button -->
+												<Button Content="Ignore" Tag="{x:Bind}" Click="IgnoreLog_Click" FontSize="12" Padding="8,4" Background="Transparent" ToolTipService.ToolTip="Remove this log entry" />
 											</StackPanel>
 										</StackPanel>
 									</DataTemplate>
